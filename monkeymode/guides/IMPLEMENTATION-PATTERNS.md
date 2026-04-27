@@ -1,6 +1,6 @@
 # Implementation Patterns & Reference Examples
 
-**Purpose:** Detailed code examples for common implementation patterns, testing strategies, error handling, and troubleshooting. Referenced by `subagents/forge-implementer.md` during Phase 4 implementation.
+**Purpose:** Detailed code examples for common implementation patterns, testing strategies, error handling, and troubleshooting. Referenced by the `implementer` subagent during Phase 4 implementation.
 
 ---
 

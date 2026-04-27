@@ -34,9 +34,7 @@ For each story in state.stories:
 For each eligible story, spawn a `verifier` subagent (`subagent_type: "verifier"` via the Task tool).
 
 **How to build the verifier prompt:**
-1. Read `subagents/verifier.md` from the skills directory
-2. Append story-specific context (see **Verifier Prompt Template** below)
-3. Pass the combined prompt and launch all verifiers for a batch in a **single message** (parallel tool calls)
+1. Include story-specific context (see **Verifier Prompt Template** below) in the subagent's `prompt` parameter and launch all verifiers for a batch in a **single message** (parallel tool calls)
 
 **CRITICAL RULES:**
 - Verifier subagents are **read-only** — they do NOT modify any files
@@ -177,8 +175,7 @@ After verification completes, update state.json:
 
 **Each verifier subagent receives a prompt composed of two parts:**
 
-1. **Base instructions** — Read `subagents/verifier.md` and include its full contents.
-2. **Story-specific context** — Append the following template.
+**Story-specific context** — Include the following template in the subagent's `prompt` parameter.
 
 ```
 ## Story to Verify
@@ -224,8 +221,7 @@ Before verifying any code, read these files to load context:
 
 **Each reworker subagent receives a prompt composed of two parts:**
 
-1. **Base instructions** — Read `subagents/reworker.md` and include its full contents.
-2. **Rework-specific context** — Append the following template.
+**Rework-specific context** — Include the following template in the subagent's `prompt` parameter.
 
 ```
 ## Story to Rework

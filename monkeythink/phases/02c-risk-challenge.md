@@ -127,22 +127,22 @@ List 2-4 assumptions this direction is taking for granted that have not been val
 
 ## Step 3: Spawn Risk Challenge Council in Parallel
 
-Spawn all three subagents simultaneously using the Task tool, identical to Phase 1. Read each subagent's system prompt from `{skill-directory}/subagents/council-{member}.md` and prepend it to the risk challenge brief.
+Spawn all three subagents simultaneously using the Task tool, identical to Phase 1. Pass the risk challenge brief as each subagent's `prompt`.
 
 ```
 Task 1: council-claude subagent
-  - prompt: [council-claude.md system prompt + risk challenge brief]
-  - subagent_type: generalPurpose
+  - prompt: [risk challenge brief]
+  - subagent_type: council-claude
   - description: "Council member Claude — risk challenge"
 
 Task 2: council-gpt subagent
-  - prompt: [council-gpt.md system prompt + risk challenge brief]
-  - subagent_type: generalPurpose
+  - prompt: [risk challenge brief]
+  - subagent_type: council-gpt
   - description: "Council member GPT — risk challenge"
 
 Task 3: council-gemini subagent
-  - prompt: [council-gemini.md system prompt + risk challenge brief]
-  - subagent_type: generalPurpose
+  - prompt: [risk challenge brief]
+  - subagent_type: council-gemini
   - description: "Council member Gemini — risk challenge"
 ```
 
