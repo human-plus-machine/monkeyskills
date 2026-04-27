@@ -1,0 +1,20 @@
+{
+  "name": "monkeyskills",
+  "version": "1.0.0",
+  "description": "Install the MonkeySkills suite of Claude Code skills",
+  "bin": {
+    "monkeyskills": "./install.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VibeEffect/MonkeySkills.git"
+  },
+  "scripts": {
+    "test": "node --test test/cursor-plugin.test.js"
+  },
+  "keywords": ["claude-code", "cursor", "cursor-plugin", "skills", "monkeyskills", "ai", "claude"],
+  "license": "MIT"
+}

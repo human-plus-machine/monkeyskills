@@ -1,0 +1,16 @@
+{
+  "name": "monkeyskills",
+  "description": "A suite of AI skills for structured development — think, plan, build, and commit with a guided pipeline.",
+  "version": "1.0.0",
+  "author": {
+    "name": "VibeEffect",
+    "url": "https://github.com/VibeEffect/MonkeySkills"
+  },
+  "skills": [
+    "../monkeythink",
+    "../monkeyplan",
+    "../monkeymode",
+    "../commit-skill"
+  ],
+  "rules": "../rules"
+}
