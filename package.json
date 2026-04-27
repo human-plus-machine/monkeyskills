@@ -12,6 +12,9 @@
     "type": "git",
     "url": "https://github.com/VibeEffect/MonkeySkills.git"
   },
-  "keywords": ["claude-code", "skills", "monkeyskills", "ai", "claude"],
+  "scripts": {
+    "test": "node --test test/cursor-plugin.test.js"
+  },
+  "keywords": ["claude-code", "cursor", "cursor-plugin", "skills", "monkeyskills", "ai", "claude"],
   "license": "MIT"
 }

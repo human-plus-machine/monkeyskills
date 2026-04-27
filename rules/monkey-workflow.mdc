@@ -1,0 +1,30 @@
+---
+description: MonkeySkills workflow — use this pipeline for any non-trivial feature from idea to production
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# MonkeySkills Development Pipeline
+
+Use the MonkeySkills pipeline for structured AI-assisted development. The pipeline is:
+
+```
+/monkeythink → /monkeyplan → /monkeymode → /commit
+```
+
+## When to use each skill
+
+- **`/monkeythink`** — Start here for raw ideas. Frames the problem, runs an LLM council exploration, and produces a discovery brief. Use when you have an idea but need to explore solution space before committing to a direction.
+
+- **`/monkeyplan`** — Takes a discovery brief (or a clear idea) and produces a Product Requirements Tracker (PRT), UX spec, and Jira-ready epic breakdown. Use when you're ready to commit to a direction and need structured requirements.
+
+- **`/monkeymode`** — Full self-guided implementation: design → user stories → code spec → implementation (TDD with parallel subagents) → verification → integration → acceptance. Use when you have clear requirements and are ready to build.
+
+- **`/commit`** — Git workflow: creates a `feat/` or `bugs/` topic branch, commits per story/phase, pushes, and optionally opens a PR. Always use this after a MonkeyMode phase instead of committing manually.
+
+## Rules
+
+- Never commit directly to `main` or `develop`. Always use `/commit` which enforces topic branches.
+- Each skill maintains state in your workspace — you can resume any phase across sessions.
+- Skills can be used independently — you don't have to run the full pipeline every time.
+- For small changes or bug fixes, skip to `/monkeymode` or just use `/commit`.

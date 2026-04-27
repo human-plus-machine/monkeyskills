@@ -1,0 +1,32 @@
+---
+description: Git commit rules for MonkeySkills — always use topic branches, never commit directly to main
+globs: ["**/.git/**", "**/COMMIT_EDITMSG"]
+alwaysApply: false
+---
+
+# MonkeySkills Git Commit Rules
+
+## Branch naming
+
+- Features: `feat/<short-description>`
+- Bug fixes: `bugs/<short-description>`
+- Never commit directly to `main`, `master`, or `develop`
+
+## Commit message format
+
+```
+<type>: <short summary>
+
+<optional body>
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
+
+## Workflow
+
+1. Use `/commit` after any MonkeyMode phase — it reads MonkeyMode state and stages the right files
+2. One commit per story or logical change unit
+3. Push only the current topic branch, never force-push to shared branches
+4. Open a PR to the default branch after the full feature is complete
