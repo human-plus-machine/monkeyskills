@@ -102,25 +102,22 @@ Do not deviate from this format. The orchestrator that reads your response depen
 
 ## Step 3: Spawn Council Subagents in Parallel
 
-Spawn all three subagents simultaneously using the Task tool. For each subagent, read the corresponding system prompt from the `subagents/` directory and prepend it to the council brief as the full prompt.
-
-1. Read `{skill-directory}/subagents/council-claude.md`, `{skill-directory}/subagents/council-gpt.md`, `{skill-directory}/subagents/council-gemini.md`
-2. For each subagent, construct the prompt as: `{subagent system prompt}\n\n---\n\n{council brief from Step 2}`
+Spawn all three subagents simultaneously using the Task tool. Pass the council brief from Step 2 as each subagent's `prompt`.
 
 ```
 Task 1: council-claude subagent
-  - prompt: [council-claude.md system prompt + council brief]
-  - subagent_type: generalPurpose
+  - prompt: [council brief from Step 2]
+  - subagent_type: council-claude
   - description: "Council member Claude — solution exploration"
 
 Task 2: council-gpt subagent
-  - prompt: [council-gpt.md system prompt + council brief]
-  - subagent_type: generalPurpose
+  - prompt: [council brief from Step 2]
+  - subagent_type: council-gpt
   - description: "Council member GPT — solution exploration"
 
 Task 3: council-gemini subagent
-  - prompt: [council-gemini.md system prompt + council brief]
-  - subagent_type: generalPurpose
+  - prompt: [council brief from Step 2]
+  - subagent_type: council-gemini
   - description: "Council member Gemini — solution exploration"
 ```
 

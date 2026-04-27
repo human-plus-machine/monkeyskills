@@ -411,9 +411,9 @@ Key responsibilities:
 1. **Analyze stories** — Identify which stories have completed code specs and are ready for implementation
 2. **Detect file conflicts** — Check `files_to_create` and `files_to_modify` across stories; stories that share files CANNOT run in the same batch
 3. **Batch stories** — Group up to 10 conflict-free stories per batch
-4. **Step 1 — Spawn test-writer subagents** — Launch one `test-writer` subagent per story (`subagent_type: "generalPurpose"`). Include the full contents of `subagents/test-writer.md` at the start of each prompt. **Do NOT pass a `model` parameter.**
+4. **Step 1 — Spawn test-writer subagents** — Launch one `test-writer` subagent per story (`subagent_type: "test-writer"`). **Do NOT pass a `model` parameter.**
 5. **Confirm red state** — After test-writers complete, verify all new tests fail. Do not proceed until confirmed. Update state to `tests_written` per story.
-6. **Step 2 — Spawn implementer subagents** — Launch one `implementer` subagent per story (`subagent_type: "implementer"`). Include the full contents of `subagents/implementer.md` plus the list of test files already written. **Do NOT pass a `model` parameter.** Never use `model: "fast"`.
+6. **Step 2 — Spawn implementer subagents** — Launch one `implementer` subagent per story (`subagent_type: "implementer"`). Include the list of test files already written in the prompt. **Do NOT pass a `model` parameter.** Never use `model: "fast"`.
 7. **Collect test corrections** — After implementers complete, aggregate any Option B escape hatch corrections from their reports into `state.json` under `verification.test_corrections` per story
 8. **Own state.json** — Only the orchestrator writes to `state.json`; subagents do NOT touch it
 9. **Reconcile results** — After each batch completes, run full test suite, update state

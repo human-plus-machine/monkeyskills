@@ -63,7 +63,7 @@ For languages without a dedicated guide, follow existing codebase patterns and i
 
 ## Per-Story Implementation Instructions
 
-The detailed per-story implementation process (TDD loop, code quality standards, code review self-check, reporting format) is provided to each `implementer` subagent via its prompt. The orchestrator reads `subagents/implementer.md` and includes it in the subagent's prompt (up to 10 in parallel).
+The detailed per-story implementation process (TDD loop, code quality standards, code review self-check, reporting format) is provided to each `implementer` subagent via its prompt. The orchestrator spawns `implementer` subagents (up to 10 in parallel) using `subagent_type: "implementer"` via the Task tool.
 
 For detailed code examples and common patterns, see `guides/IMPLEMENTATION-PATTERNS.md`.
  
@@ -71,7 +71,7 @@ For detailed code examples and common patterns, see `guides/IMPLEMENTATION-PATTE
 
 Phase 4 runs as a **two-step pipeline per batch**: test-writer subagents first, then implementer subagents. This enforces real TDD — tests are written and confirmed red before any implementation code exists.
 
-The main agent acts as the **orchestrator** — it never writes tests or implementation code directly. It spawns subagents via the Task tool using the contents of `subagents/test-writer.md` and `subagents/implementer.md` as base instructions.
+The main agent acts as the **orchestrator** — it never writes tests or implementation code directly. It spawns `test-writer` and `implementer` subagents via the Task tool.
 
 ### Architecture Overview
 
@@ -176,12 +176,10 @@ Update state.json with the batch plan before executing.
 
 #### Step O4: Spawn Test-Writer Subagents
 
-For each story in the current batch, spawn a `test-writer` subagent (`subagent_type: "generalPurpose"` via the Task tool) using the contents of `subagents/test-writer.md` as base instructions.
+For each story in the current batch, spawn a `test-writer` subagent (`subagent_type: "test-writer"` via the Task tool).
 
 **How to build the test-writer prompt:**
-1. Read `subagents/test-writer.md` from the skills directory
-2. Append the story-specific context (code spec, design context, file boundaries, language guidelines) after the subagent instructions
-3. Pass the combined prompt as the subagent's `prompt` parameter
+1. Include the story-specific context (code spec, design context, file boundaries, language guidelines) in the subagent's `prompt` parameter
 
 **CRITICAL RULES:**
 - Launch all test-writer subagents for a batch in a **single message** (parallel tool calls)
@@ -202,12 +200,10 @@ After all test-writer subagents complete:
 
 #### Step O5: Spawn Implementer Subagents
 
-For each story in the current batch, spawn an `implementer` subagent (`subagent_type: "implementer"` via the Task tool) using the contents of `subagents/implementer.md` as base instructions.
+For each story in the current batch, spawn an `implementer` subagent (`subagent_type: "implementer"` via the Task tool).
 
 **How to build the implementer prompt:**
-1. Read `subagents/implementer.md` from the skills directory
-2. Append the story-specific context (code spec, design context, file boundaries, language guidelines, and the list of test files already written) after the subagent instructions
-3. Pass the combined prompt as the subagent's `prompt` parameter
+1. Include the story-specific context (code spec, design context, file boundaries, language guidelines, and the list of test files already written) in the subagent's `prompt` parameter
 
 **CRITICAL RULES:**
 - Launch all implementer subagents for a batch in a **single message** (parallel tool calls)
@@ -309,7 +305,7 @@ IF all stories implementation_complete:
 
 ### Subagent Prompt Templates
 
-Each subagent receives a prompt composed of two parts: base instructions (from the relevant `.md` file in `subagents/`) followed by story-specific context. The combined prompt must be self-contained.
+Each subagent receives a self-contained prompt with all necessary story-specific context.
 
 #### Test-Writer Prompt Template
 
