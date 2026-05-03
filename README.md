@@ -175,14 +175,13 @@ PR generation          Generates PR body from MonkeyMode artifacts on request
 ## Install
 
 ```bash
-npx github:VibeEffect/MonkeySkills
+npx github:human-plus-machine/monkeyskills
 ```
 
 **Options:**
 
 ```bash
-npx github:VibeEffect/MonkeySkills --force     # overwrite existing installs
-npx github:VibeEffect/MonkeySkills --dry-run   # preview without writing
+npx github:human-plus-machine/monkeyskills --dry-run   # preview without writing
 ```
 
 Restart Claude Code or Cursor after installing. Skills appear in the `/` command list.

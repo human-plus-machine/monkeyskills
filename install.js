@@ -18,7 +18,6 @@ const C = {
 
 // ── CLI flags ────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-const FORCE   = args.includes('--force') || args.includes('-f');
 const DRY_RUN = args.includes('--dry-run');
 
 // ── Paths ────────────────────────────────────────────────────────────────────
@@ -79,9 +78,8 @@ function askOverwrite(name) {
 
 /** Decide whether to overwrite an existing path. */
 function shouldOverwrite(name) {
-  if (FORCE) return true;
   if (!process.stdin.isTTY) {
-    console.log(`  ${C.yellow}SKIP${C.reset}  ${name} — already installed (use --force to overwrite)`);
+    console.log(`  ${C.yellow}SKIP${C.reset}  ${name} — already installed`);
     return false;
   }
   return askOverwrite(name);
@@ -104,7 +102,7 @@ function copySkill(srcDir, destDir, skillName) {
 }
 
 function copySubagent(srcFile, destFile) {
-  if (fs.existsSync(destFile) && !FORCE) return false;
+  if (fs.existsSync(destFile)) return false;
   if (!DRY_RUN) {
     fs.copyFileSync(srcFile, destFile);
   }
