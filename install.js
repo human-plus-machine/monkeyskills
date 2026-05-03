@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const readline = require('readline/promises');
 
 // ── ANSI colours (no chalk) ──────────────────────────────────────────────────
 const C = {
@@ -26,7 +27,8 @@ const HOME      = os.homedir();
 
 const ALL_TARGETS = [
   { id: 'claude', label: 'Claude Code', skillsDir: path.join(HOME, '.claude', 'skills'), subagentsDir: path.join(HOME, '.claude', 'subagents') },
-  { id: 'cursor', label: 'Cursor',      skillsDir: path.join(HOME, '.cursor', 'skills'), subagentsDir: path.join(HOME, '.cursor', 'subagents') },
+  // Cursor Settings / Task tool read user subagents from ~/.cursor/agents (not …/subagents).
+  { id: 'cursor', label: 'Cursor', skillsDir: path.join(HOME, '.cursor', 'skills'), subagentsDir: path.join(HOME, '.cursor', 'agents') },
 ];
 
 const EXCLUDED_DIRS = new Set(['subagents', 'node_modules', '.git', '.github']);
@@ -40,27 +42,8 @@ function pad(str, len) {
   return str + ' '.repeat(Math.max(0, len - str.length));
 }
 
-/** Read one line from stdin (blocking, TTY). */
-function readLineSync() {
-  const chunks = [];
-  const buf = Buffer.alloc(1);
-  while (true) {
-    let n;
-    try {
-      n = fs.readSync(0, buf, 0, 1, null);
-    } catch {
-      break;
-    }
-    if (n === 0) break;
-    const c = buf[0];
-    if (c === 10 || c === 13) break;
-    chunks.push(c);
-  }
-  return Buffer.from(chunks).toString('utf8').trim();
-}
-
 /** Which app(s) to install into: Claude only, Cursor only, or both. */
-function resolveTargets() {
+async function resolveTargets() {
   if (args.includes('--claude-only')) return [ALL_TARGETS[0]];
   if (args.includes('--cursor-only')) return [ALL_TARGETS[1]];
   if (args.includes('--both')) return ALL_TARGETS;
@@ -73,18 +56,19 @@ function resolveTargets() {
   }
 
   if (process.stdin.isTTY && process.stdout.isTTY) {
-    process.stdout.write(`
-${C.bold}Where should MonkeySkills be installed?${C.reset}
-  ${C.cyan}[1]${C.reset} Claude Code only  ${C.gray}~/.claude/skills & subagents${C.reset}
-  ${C.cyan}[2]${C.reset} Cursor only       ${C.gray}~/.cursor/skills & subagents${C.reset}
-  ${C.cyan}[3]${C.reset} Both              ${C.gray}(recommended if you use both)${C.reset}
-
-${C.bold}Choice${C.reset} ${C.gray}[1-3, default 3]${C.reset}: `);
-    const line = readLineSync();
-    process.stdout.write('\n');
-    if (line === '1') return [ALL_TARGETS[0]];
-    if (line === '2') return [ALL_TARGETS[1]];
-    return ALL_TARGETS;
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    try {
+      console.log(`\n${C.bold}Where should MonkeySkills be installed?${C.reset}`);
+      console.log(`  ${C.cyan}[1]${C.reset} Claude Code only  ${C.gray}~/.claude/skills & subagents${C.reset}`);
+      console.log(`  ${C.cyan}[2]${C.reset} Cursor only       ${C.gray}~/.cursor/skills & ~/.cursor/agents${C.reset}`);
+      console.log(`  ${C.cyan}[3]${C.reset} Both              ${C.gray}(recommended if you use both)${C.reset}`);
+      const line = (await rl.question(`\n${C.bold}Choice${C.reset} ${C.gray}[1-3, default 3]${C.reset}: `)).trim();
+      if (line === '1') return [ALL_TARGETS[0]];
+      if (line === '2') return [ALL_TARGETS[1]];
+      return ALL_TARGETS;
+    } finally {
+      rl.close();
+    }
   }
 
   console.log(
@@ -155,9 +139,9 @@ function restartHint(targets) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-function main() {
+async function main() {
   const divider = '═'.repeat(50);
-  const targets = resolveTargets();
+  const targets = await resolveTargets();
 
   console.log(`\n${C.bold}MonkeySkills Installer${C.reset}${DRY_RUN ? `  ${C.yellow}[dry run]${C.reset}` : ''}`);
   console.log(C.gray + divider + C.reset);
@@ -236,9 +220,7 @@ function main() {
   }
 }
 
-try {
-  main();
-} catch (err) {
+main().catch(err => {
   console.error(`\n${C.red}Error:${C.reset}`, err.message);
   process.exit(1);
-}
+});
