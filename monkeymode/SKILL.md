@@ -383,6 +383,12 @@ The orchestrator spawns parallel subagents for implementation, verification, and
 ```
 Phase 2B: Acceptance Checklist  →  agent drafts checklist (curl, CLI, UI steps); user approves
        ↓ (ask user to proceed)
+Phase 3: Code Spec
+  Step 1 →  code-spec-writer subagents (parallel, all stories at once, max 10)
+            ↓ collect draft specs + open_questions per story
+  Step 2 →  orchestrator resolves open questions with user, presents each spec for approval
+            ↓ orchestrator writes approved specs to disk + updates state.json
+       ↓ (ask user to proceed)
 Phase 4: Implementation
   Step 1 →  test-writer subagents (parallel, per batch) — writes red tests from code spec
             ↓ confirm all tests red
@@ -399,6 +405,86 @@ Phase 7: Acceptance       →  agent runs automatable checks; human confirms UI 
             ↓ all pass            ↓ failures found
          completed          →  rework loop → re-run failed checks
 ```
+
+### Phase 3 Orchestrator Responsibilities
+
+**FIRST read `phases/03-code-spec.md`** for the full orchestration workflow before executing this phase. The spec-writing methodology (task decomposition, test case tables, output format, quality checklist) lives in `subagents/code-spec-writer.md` — the subagent's system prompt — and is used by the subagent directly.
+
+**The orchestrator MUST spawn `code-spec-writer` subagents — it must NOT write code specs itself.** The code-spec-writer subagent does the codebase investigation and produces a structured draft; the orchestrator resolves questions, presents specs for approval, and commits artifacts.
+
+Phase 3 runs as a **two-step pipeline across all stories**:
+
+Key responsibilities:
+
+1. **Collect all stories** — Read `state.json` and identify all stories that need code specs (status `not_started` or `code_spec` incomplete). This is typically all stories from Phase 2.
+2. **Build subagent prompts** — For each story, assemble a self-contained prompt containing: full user story text, acceptance criteria, design doc excerpts, codebase references to investigate, language guidelines path, and any conventions already known from Phase 1.
+3. **Step 1 — Spawn code-spec-writer subagents** — Launch one `code-spec-writer` subagent per story (`subagent_type: "generalPurpose"` — no registered type named `"code-spec-writer"` exists; `generalPurpose` is correct). Include the contents of `subagents/code-spec-writer.md` as the system prompt in the `prompt` parameter. **Launch all subagents in a single message (parallel tool calls). Max 10 concurrent subagents.** If there are more than 10 stories, batch them (10 per batch), completing each batch before spawning the next.
+4. **Step 2 — Collect and resolve** — For each subagent result:
+   - Read the **Structured Output JSON**: `spec_ready`, `files_to_create`, `files_to_modify`, `open_questions`
+   - If `spec_ready: true` → present the spec draft to the user for approval
+   - If `spec_ready: false` → surface the blocking `open_questions` to the user, apply answers, then present the updated spec for approval
+5. **Commit on approval** — After user approves each spec, write the spec markdown to `{workspace}/.monkeymode/{feature-name}/code_specs/{story-id}-spec.md`
+6. **Update state.json** — After each spec is approved and written, update that story's entry: `status: "code_spec"`, `code_spec_path`, `files_to_create`, `files_to_modify`
+7. **Present specs sequentially** — Even though drafting is parallel, present specs to the user one at a time for review and approval before advancing
+8. **Handle failures** — If a subagent fails, log the error in state and fall back to writing that story's spec directly — follow the methodology in `subagents/code-spec-writer.md`
+9. **Complete phase** — Once all stories have approved specs and state is updated, ask user to proceed to Phase 4
+
+**Subagent prompt template for code-spec-writer:**
+
+```
+## Your Story
+
+**Story:** {story_title}
+**Story ID:** {story_key}
+**Feature:** {feature_name}
+
+## User Story Text
+
+{paste full user story text from user_stories.md}
+
+## Acceptance Criteria
+
+{paste all acceptance criteria for this story from 2b-acceptance.md}
+
+## Files to Read on Startup
+
+Read ALL of these before writing the spec:
+
+**Design context:**
+- {workspace}/.monkeymode/{feature-name}/design/1a-discovery.md
+- {workspace}/.monkeymode/{feature-name}/design/1b-contracts.md
+- {workspace}/.monkeymode/{feature-name}/design/1c-operations.md
+- {workspace}/.monkeymode/{feature-name}/stories/user_stories.md
+
+**Language-specific coding guidelines:**
+- {skill_dir}/monkeymode/guides/{LANGUAGE}-CODING-GUIDELINES.md
+
+## Codebase References (Read These to Discover Existing Patterns)
+
+{list of existing files to investigate — e.g. similar service, repository, test files.
+ Be specific: include file paths the orchestrator identified from Phase 1 design docs.}
+
+## Conventions Seed (Pre-Filled by Orchestrator)
+
+{Any conventions already confirmed in Phase 1, or "Discover from codebase references above."}
+
+## Out of Scope
+
+{Explicit out-of-scope items from the user story and design docs}
+```
+
+**CRITICAL RULES for code-spec-writer subagents:**
+- Launch all subagents for a batch in a **single message** (parallel tool calls)
+- Never exceed 10 concurrent subagents
+- Each subagent gets a **complete, self-contained prompt** — subagents have NO access to the conversation history
+- **Do NOT pass a `model` parameter** — omit it so subagents inherit the parent's model
+- Subagents do NOT write files or update `state.json` — they return a draft; the orchestrator commits it
+
+**After Phase 3 completes:**
+- Every story must have `status: "code_spec"` and a populated `code_spec_path` in `state.json`
+- Every story must have `files_to_create` and `files_to_modify` lists populated (required for Phase 4 conflict detection)
+
+---
 
 ### Phase 4 Orchestrator Responsibilities
 
@@ -485,6 +571,9 @@ Key responsibilities:
 - ❌ Fix symptoms without tracing to the origin phase (see Rework guide)
 - ❌ Make invisible rework — always track changes in state.json
 - ❌ Let subagents write to `state.json` — only the orchestrator updates state
+- ❌ Write code specs directly in Phase 3 — always spawn `code-spec-writer` subagents and let them investigate the codebase
+- ❌ Commit a spec to disk before the user approves it
+- ❌ Advance to Phase 4 before every story has `files_to_create` and `files_to_modify` populated in `state.json`
 - ❌ Verify stories without spawning `verifier` subagents — the orchestrator must always delegate verification
 - ❌ Run stories with shared files in the same parallel batch
 - ❌ Launch more than 10 subagents concurrently
@@ -501,6 +590,11 @@ Key responsibilities:
 - ✅ Use workspace-relative paths for all artifacts
 - ✅ When rework is needed, load `phases/rework.md` and follow the structured process
 - ✅ Trace issues to their origin phase before fixing
+- ✅ In Phase 3: Spawn one `code-spec-writer` subagent per story (all in parallel, max 10 at once)
+- ✅ In Phase 3: Build each subagent prompt with full story text, AC, design doc excerpts, and specific codebase file references
+- ✅ In Phase 3: Resolve all blocking open_questions with the user before saving a spec
+- ✅ In Phase 3: Present each spec to the user for approval before writing to disk
+- ✅ In Phase 3: Populate `files_to_create` and `files_to_modify` in `state.json` for every story before Phase 4
 - ✅ In Phase 4: Load language-specific coding guidelines from `guides/` before writing any code
 - ✅ In Phase 4: Check for file conflicts before batching stories for parallel execution
 - ✅ In Phase 4: Run full test suite after each batch completes
@@ -517,7 +611,7 @@ Key responsibilities:
 Every phase output must meet quality standards defined in phase guides:
 - **Design:** Top 1% quality - performance, scalability, security
 - **User Stories:** Zero dependencies in Sprint 1, fully parallelizable
-- **Code Spec:** Atomic tasks, complete signatures, test specifications
+- **Code Spec:** Atomic tasks, complete signatures, test specifications — drafted by `code-spec-writer` subagents, approved by user before commit
 - **Implementation:** Production-ready, tested, follows existing patterns, no cross-story file conflicts
 - **Verification:** Every acceptance criterion confirmed, signatures match spec, full test coverage
 - **Integration:** Shared files merged cleanly, cross-story contracts verified, e2e tests passing
