@@ -70,7 +70,7 @@ Use the prompt template below.
 
 #### Step O3: Spawn code-spec-writer Subagents (Parallel)
 
-Launch one `code-spec-writer` subagent per story using the Task tool (`subagent_type: "generalPurpose"` — there is no registered `"code-spec-writer"` type; `generalPurpose` is correct). The subagent's system prompt comes from `subagents/code-spec-writer.md` — include its contents in the `prompt` parameter.
+Launch one `code-spec-writer` subagent per story using the Task tool (`subagent_type: "code-spec-writer"`). The spec-writing methodology (codebase investigation, task decomposition, function signatures, test case tables, quality checklist, anti-patterns) is built into the `code-spec-writer` subagent type — provide a complete, self-contained prompt with all story-specific context using the template below.
 
 **CRITICAL RULES:**
 - Launch all subagents in a **single message** (parallel tool calls)
@@ -150,7 +150,7 @@ Then ask user: "All [N] code specs approved and saved. Ready to move to Phase 4 
 
 If a `code-spec-writer` subagent fails or returns an unusable draft:
 1. Log the error in state
-2. Fall back: write that story's spec directly — read `subagents/code-spec-writer.md` for the methodology to follow
+2. Fall back: write that story's spec directly — follow the methodology in `phases/03-code-spec.md` (codebase investigation, task decomposition, function signatures, test case tables)
 3. Continue processing other stories normally
 
 ### Subagent Prompt Template

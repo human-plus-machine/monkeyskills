@@ -429,7 +429,7 @@ Phase 7: Acceptance       →  agent runs automatable checks; human confirms UI 
 
 ### Phase 3 Orchestrator Responsibilities
 
-**FIRST read `phases/03-code-spec.md`** for the full orchestration workflow before executing this phase. The spec-writing methodology (task decomposition, test case tables, output format, quality checklist) lives in `subagents/code-spec-writer.md` — the subagent's system prompt — and is used by the subagent directly.
+**FIRST read `phases/03-code-spec.md`** for the full orchestration workflow before executing this phase. The spec-writing methodology (task decomposition, test case tables, output format, quality checklist) is built into the `code-spec-writer` subagent type and used by the subagent directly.
 
 **The orchestrator MUST spawn `code-spec-writer` subagents — it must NOT write code specs itself.** The code-spec-writer subagent does the codebase investigation and produces a structured draft; the orchestrator resolves questions, presents specs for approval, and commits artifacts.
 
@@ -439,7 +439,7 @@ Key responsibilities:
 
 1. **Collect all stories** — Read `state.json` and identify all stories that need code specs (status `not_started` or `code_spec` incomplete). This is typically all stories from Phase 2.
 2. **Build subagent prompts** — For each story, assemble a self-contained prompt containing: full user story text, acceptance criteria, design doc excerpts, codebase references to investigate, language guidelines path, and any conventions already known from Phase 1.
-3. **Step 1 — Spawn code-spec-writer subagents** — Launch one `code-spec-writer` subagent per story (`subagent_type: "generalPurpose"` — no registered type named `"code-spec-writer"` exists; `generalPurpose` is correct). Include the contents of `subagents/code-spec-writer.md` as the system prompt in the `prompt` parameter. **Launch all subagents in a single message (parallel tool calls). Max 10 concurrent subagents.** If there are more than 10 stories, batch them (10 per batch), completing each batch before spawning the next.
+3. **Step 1 — Spawn code-spec-writer subagents** — Launch one `code-spec-writer` subagent per story (`subagent_type: "code-spec-writer"`). Provide a complete, self-contained prompt using the template below — subagents have no access to conversation history. **Launch all subagents in a single message (parallel tool calls). Max 10 concurrent subagents.** If there are more than 10 stories, batch them (10 per batch), completing each batch before spawning the next.
 4. **Step 2 — Collect and resolve** — For each subagent result:
    - Read the **Structured Output JSON**: `spec_ready`, `files_to_create`, `files_to_modify`, `open_questions`
    - If `spec_ready: true` → present the spec draft to the user for approval
@@ -447,7 +447,7 @@ Key responsibilities:
 5. **Commit on approval** — After user approves each spec, write the spec markdown to `{workspace}/.monkeymode/{feature-name}/code_specs/{story-id}-spec.md`
 6. **Update state.json** — After each spec is approved and written, update that story's entry: `status: "code_spec"`, `code_spec_path`, `files_to_create`, `files_to_modify`
 7. **Present specs sequentially** — Even though drafting is parallel, present specs to the user one at a time for review and approval before advancing
-8. **Handle failures** — If a subagent fails, log the error in state and fall back to writing that story's spec directly — follow the methodology in `subagents/code-spec-writer.md`
+8. **Handle failures** — If a subagent fails, log the error in state and fall back to writing that story's spec directly — follow the methodology in `phases/03-code-spec.md`
 9. **Complete phase** — Once all stories have approved specs and state is updated, ask user to proceed to Phase 4
 
 **Subagent prompt template for code-spec-writer:**
