@@ -214,47 +214,71 @@ The sketch should be rough enough to build in one pass but realistic enough that
 
 Generate both files in a single pass. They must represent the same layout, content, and design tokens.
 
-#### Canvas Component (`ui-concept.canvas.tsx`)
+#### Canvas Component (`{feature-name}.canvas.tsx`)
 
-Rules:
-- `'use client'` at the top — required for Cursor canvas
-- Single default export — a React functional component named after the feature in PascalCase (e.g. `InvoiceApproval`)
-- **No external imports** — no npm packages, no design system imports. Use only React hooks (`useState`, `useMemo`) if needed
-- **Tailwind CSS with token-derived arbitrary values** — apply design tokens as Tailwind arbitrary values (e.g. `bg-[#1A73E8]`, `font-[Inter]`, `rounded-[8px]`) using the values extracted in Step 0d
-- **Self-contained mock data** — define a `const mockData = [...]` array at the top of the file
-- **Interactive where it matters** — wire up the primary action with `useState`. Do not make every element interactive — focus on the key action
-- Keep it under ~150 lines
+**CRITICAL — Cursor Canvas SDK:** In Cursor, canvases must use the `cursor/canvas` SDK and be saved to the managed canvases directory, NOT inside `.monkeythink/`. The IDE only detects and renders canvas files saved at:
+
+```
+~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx
+```
+
+Determine the workspace-id from the absolute paths visible in the current session (terminals, recently-viewed files — it follows the pattern `Users-{user}-{path-segments}`). Use a descriptive kebab-case filename.
+
+**SDK rules:**
+- Import ONLY from `cursor/canvas` — no npm packages, no relative imports, no Node built-ins
+- Always read `~/.cursor/skills-cursor/canvas/sdk/index.d.ts` and `ui-primitives.d.ts` before writing to know the exact available exports and prop shapes
+- Single default export — a React functional component named in PascalCase
+- Colors via `useHostTheme()` tokens only — no hardcoded hex values, no Tailwind arbitrary color values
+- **No** `'use client'` directive — not needed with the SDK
+- **No** inline styles with hardcoded colors — use `theme.accent.primary`, `theme.text.primary`, `theme.bg.editor`, `theme.fill.tertiary`, `theme.stroke.primary`, etc.
+- Self-contained mock data — define at the top of the file
+- Interactive where it matters — use `useCanvasState(key, defaultValue)` for persistent state or `useState` for ephemeral state
+- No gradients, no box-shadows, no emojis as decoration, no rainbow coloring
+
+**Available SDK primitives (always verify against the .d.ts before use):**
+- Layout: `Stack`, `Row`, `Grid`, `Divider`, `Spacer`
+- Typography: `H1`, `H2`, `H3`, `Text`, `Code`, `Link`
+- Surfaces: `Card`, `CardHeader`, `CardBody`
+- Data: `Table`, `Stat`
+- Actions: `Button`, `Pill`
+- Feedback: `Callout`
+- Hooks: `useHostTheme`, `useCanvasState`, `useCanvasAction`
 
 Structure:
 ```tsx
-'use client'
-
 import { useState } from 'react'
-
-// Design tokens from DESIGN.md
-const tokens = {
-  primary: '[colors.primary]',
-  surface: '[colors.surface]',
-  text: '[colors.on-surface]',
-  secondary: '[colors.secondary]',
-  font: '[typography.body-md.fontFamily]',
-  radius: '[rounded.md]',
-}
+import {
+  Stack, Row, Grid, H1, H2, Text, Divider, Spacer,
+  Card, CardHeader, CardBody,
+  Table, Pill, Stat, Callout, Button,
+  useHostTheme,
+} from 'cursor/canvas'
 
 const mockData = [
   // 3-5 realistic domain entries
 ]
 
 export default function FeatureName() {
-  const [state, setState] = useState(...)
+  const theme = useHostTheme()
+  const [activeTab, setActiveTab] = useState('overview')
 
   return (
-    <div className={`min-h-screen p-6`} style={{ backgroundColor: tokens.surface, fontFamily: tokens.font }}>
-      {/* layout here — use tokens.primary for primary actions, tokens.text for text */}
-    </div>
+    <Stack gap={20} style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
+      <H1>Feature Title</H1>
+      {/* use theme.accent.primary, theme.text.primary, theme.bg.editor, theme.fill.tertiary, theme.stroke.primary */}
+      {/* use Pill for tab bars, Table for data, Stat for metrics, Callout for alerts */}
+    </Stack>
   )
 }
 ```
+
+**Pre-delivery self-check (canvas):**
+1. Does the layout have visual hierarchy? One element should stand out.
+2. Is there variety in composition? Not a single column of uniform Card blocks.
+3. Slop check: no gradients, no emojis, no box-shadows, no rainbow coloring, no hardcoded hex.
+4. All imports resolve — only `cursor/canvas` exports used, verified against the .d.ts files.
+
+Also save the `.monkeythink/{topic-name}/ui-concept.canvas.tsx` path in the artifacts state for reference, but note in a comment that the live canvas is at the managed canvases path above.
 
 #### Standalone HTML (`ui-concept.html`)
 
@@ -321,7 +345,7 @@ After generating all three files:
 
    Design system: DESIGN.md [created/loaded] at the workspace root — [N] tokens applied.
 
-   - Cursor users: Open ui-concept.canvas.tsx in the canvas panel to see it live
+   - Cursor users: Open `{feature-name}.canvas.tsx` in the canvas panel to see it live (saved to `~/.cursor/projects/{workspace-id}/canvases/`)
    - Everyone else: Open ui-concept.html in any browser — no setup needed
 
    This shows [1-sentence description of what the sketch depicts], styled with your
@@ -347,12 +371,15 @@ Before marking Phase 2b complete:
 - [ ] `DESIGN.md` exists at workspace root (loaded or generated)
 - [ ] `DESIGN.md` lint passes (or lint was skipped with a note)
 - [ ] All WCAG AA contrast failures resolved before generating files
-- [ ] Canvas file has `'use client'` and a single default export
-- [ ] No external npm imports in the canvas file
+- [ ] **In Cursor:** Canvas saved to `~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx`
+- [ ] **In Cursor:** Canvas imports only from `cursor/canvas` — no npm packages, no hardcoded hex colors
+- [ ] **In Cursor:** `useHostTheme()` used for all colors — no hardcoded hex values anywhere
+- [ ] **In Cursor:** SDK exports verified against `~/.cursor/skills-cursor/canvas/sdk/index.d.ts` before use
+- [ ] **Other IDEs:** Canvas file has `'use client'`, single default export, no external npm imports
 - [ ] Canvas file uses design tokens (not hardcoded generic colors)
 - [ ] HTML file is fully self-contained (opens in browser with no setup)
 - [ ] HTML file has inline `tailwind.config` with design tokens
-- [ ] Both files show the same layout, content, and brand tokens
+- [ ] Both canvas and HTML show the same layout, content, and brand tokens
 - [ ] Realistic mock data used — no "Item 1", "Item 2" placeholders
 - [ ] Primary user action is interactive in both files
 - [ ] Labels and copy match the domain language from the direction and framing
@@ -375,7 +402,8 @@ Before marking Phase 2b complete:
   },
   "artifacts": {
     "design_md": "{workspace}/DESIGN.md",
-    "ui_concept_canvas": ".monkeythink/{topic-name}/ui-concept.canvas.tsx",
+    "ui_concept_canvas": "~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx",
+    "ui_concept_canvas_reference": ".monkeythink/{topic-name}/ui-concept.canvas.tsx",
     "ui_concept_html": ".monkeythink/{topic-name}/ui-concept.html"
   }
 }
