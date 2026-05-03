@@ -187,7 +187,7 @@ npx github:human-plus-machine/monkeyskills --claude-only
 npx github:human-plus-machine/monkeyskills --cursor-only
 ```
 
-On a TTY, the installer asks **1** Claude only, **2** Cursor only, or **3** both (default). Existing skills and subagents under the chosen location(s) are **replaced** each run. In CI or piped input, use the flags above or set `MONKEYSKILLS_TARGETS` to `claude`, `cursor`, or `both`.
+On a TTY, the installer asks **1** Claude only, **2** Cursor only, or **3** both (default). Existing skills and subagents under the chosen location(s) are **replaced** each run. In CI or piped input, use the flags above or set `MONKEYSKILLS_TARGETS` to `claude`, `cursor`, or `both`. For Cursor, Task subagent markdown goes to **`~/.cursor/agents/`** (where Settings lists them); Claude Code uses **`~/.claude/subagents/`**.
 
 Restart Claude Code or Cursor after installing. Skills appear in the `/` command list.
 
