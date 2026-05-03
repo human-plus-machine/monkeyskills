@@ -41,26 +41,46 @@ When `/monkeymode` is invoked, **ALWAYS**:
 
 ### Initial Preferences Setup
 
-**On first invocation, before starting Phase 1, ask the following question:**
+**On first invocation, before starting Phase 1, ask BOTH of the following questions together in a single message:**
+
+#### Output Verbosity
+
+Ask the user:
+```
+"Output verbosity level?
+
+1. Full - Complete explanations, context, and reasoning (default)
+2. Lite - Caveman mode: compressed output, drop filler, keep all technical detail"
+```
+
+If `verbosity` is `"full"`: communicate normally with complete explanations.
+If `verbosity` is `"lite"`: apply caveman compression to ALL agent-to-user communication — drop articles, conjunctions, and filler words; use fragments; be telegraphic. Technical content (code, paths, specs, artifacts) is NEVER compressed. Only how the agent talks changes.
+
+**Caveman rules (lite mode):**
+- Drop: "I'll now proceed to...", "Great!", "Sure!", transition narration, hedge phrases
+- Drop: articles (a/an/the), conjunctions where removable, pleasantries
+- Keep: all technical facts, file paths, function names, decision rationale
+- Keep: all user-facing questions (must still be clear)
+- Format: fragments OK. "Phase 3 done. 6 specs. State updated. Phase 4?" not "Phase 3 is now complete..."
 
 #### Q&A Logging
 
 Ask the user:
 ```
-"Would you like me to save a log of all our questions and answers during this process?
-This creates a qa-log.md file that tracks all decisions and context.
+"Save Q&A log?
 
-1. Yes - Save Q&A log (recommended for team projects)
-2. No - Skip Q&A logging"
+1. Yes - Creates qa-log.md tracking all decisions (recommended for teams)
+2. No - Skip logging"
 ```
 
 If `save_qa_log` is `true`, create and maintain `qa-log.md` throughout the process.
 If `save_qa_log` is `false`, skip all Q&A logging (do not create or update qa-log.md).
 
-Store the preference in state:
+Store both preferences in state:
 ```json
 {
   "context": {
+    "verbosity": "full",
     "save_qa_log": true
   }
 }
@@ -120,6 +140,7 @@ The agent MUST create and maintain this file at `{workspace}/.monkeymode/{featur
     "completed_at": null
   },
   "context": {
+    "verbosity": "full",
     "save_qa_log": true
   },
   "last_updated": "ISO8601 timestamp"
@@ -471,6 +492,14 @@ Read ALL of these before writing the spec:
 ## Out of Scope
 
 {Explicit out-of-scope items from the user story and design docs}
+
+## Communication Style
+
+verbosity: {verbosity}
+
+When reporting results, open_questions, and findings back:
+- full: normal prose
+- lite: caveman compression — fragments, no filler, drop articles. Technical content (code, paths, names) exact as always.
 ```
 
 **CRITICAL RULES for code-spec-writer subagents:**

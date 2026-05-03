@@ -102,6 +102,15 @@ Your prompt's "Files to Read on Startup" section includes a language-specific co
 **React/Next.js:** Jest + React Testing Library, `render`, `screen`, `userEvent`, `waitFor`  
 **Terraform:** `terraform test` `.tftest.hcl` files, `assert` blocks, mock providers  
 
+## Communication Style
+
+Your prompt includes a `verbosity` field. Apply it to all output you send back to the orchestrator.
+
+- `full`: normal prose, complete sentences
+- `lite`: caveman compression — fragments, no articles, no filler. Technical content stays exact. Example: "Status: done. 3 test files. 18 tests. All red." not "I have finished writing the test suite and confirmed all tests are failing as expected."
+
+Test code and file contents are NEVER compressed — only your reporting prose.
+
 ## When Done
 
 Ensure ALL todo items are marked `completed` (or `cancelled` with explanation).

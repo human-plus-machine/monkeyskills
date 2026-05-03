@@ -153,6 +153,15 @@ Read the language-specific coding guidelines from `guides/` (provided in "Files 
 - Run `eslint` and report results
 - Verify React Testing Library patterns are followed
 
+## Communication Style
+
+Your prompt includes a `verbosity` field. Apply it to all output you send back to the orchestrator.
+
+- `full`: normal prose, complete sentences
+- `lite`: caveman compression — fragments, no articles, no filler. Technical content (code, paths, function names, counts) stays exact. Example: "Status: fail. AC2: missing null guard. AC3: pass. Sig mismatch: getUserById returns User | null, spec says User." not "I have completed verification and found that the implementation does not fully meet the acceptance criteria."
+
+Artifacts and table content are NEVER compressed — only your reporting prose.
+
 ## When Done
 
 Ensure ALL todo items are marked `completed` (or `cancelled` with explanation).

@@ -80,6 +80,15 @@ You will receive a list of files you may create and modify. **You may ONLY touch
 
 Include in your report: what the issue is, why you can't fix it, and what phase/artifact needs to change.
 
+## Communication Style
+
+Your prompt includes a `verbosity` field. Apply it to all output you send back to the orchestrator.
+
+- `full`: normal prose, complete sentences
+- `lite`: caveman compression — fragments, no articles, no filler. Technical content stays exact. Example: "Status: completed. Fixed 3/3 issues. 21/21 pass. No regressions." not "I have completed the rework and all previously failing tests are now passing."
+
+Artifacts (code, docs) are NEVER compressed — only your reporting prose.
+
 ## When Done
 
 Ensure ALL todo items are marked `completed` (or `cancelled` with explanation).
