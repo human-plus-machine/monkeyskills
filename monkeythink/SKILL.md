@@ -207,7 +207,8 @@ The agent MUST create and maintain this file at `{workspace}/.monkeythink/{topic
     },
     "exploration_synthesis": ".monkeythink/{topic-name}/exploration-synthesis.md",
     "design_md": "DESIGN.md",
-    "ui_concept_canvas": ".monkeythink/{topic-name}/ui-concept.canvas.tsx",
+    "ui_concept_canvas": "~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx",
+    "ui_concept_canvas_reference": ".monkeythink/{topic-name}/ui-concept.canvas.tsx",
     "ui_concept_html": ".monkeythink/{topic-name}/ui-concept.html",
     "risk_challenge": ".monkeythink/{topic-name}/risk-challenge.md",
     "discovery_brief": ".monkeythink/{topic-name}/discovery-brief.md",
@@ -517,7 +518,11 @@ When discussing the council with the user:
 - ❌ Skip Phase 2b when `ui_concept_enabled` is `true` — always offer it after Direction Setting
 - ❌ Skip Step 0 (DESIGN.md check) — always check for an existing DESIGN.md before asking brand questions
 - ❌ Generate the UI sketch without applying design tokens — always use DESIGN.md values
-- ❌ Include external npm imports in the canvas component — must be self-contained
+- ❌ In Cursor: write the canvas to `.monkeythink/` — it must go to `~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx` for the IDE to detect it
+- ❌ In Cursor: use Tailwind arbitrary color values or hardcoded hex in the canvas — use `useHostTheme()` tokens only
+- ❌ In Cursor: import from anything other than `cursor/canvas` — no npm packages, no relative imports
+- ❌ In Cursor: use `'use client'` directive — not needed with the cursor/canvas SDK
+- ❌ Reference a `cursor/canvas` export without first verifying it exists in `~/.cursor/skills-cursor/canvas/sdk/index.d.ts`
 - ❌ Skip generating the HTML file — both canvas and HTML are always produced together
 - ❌ Use placeholder data ("Item 1", "Item 2") in the UI sketch — use realistic domain data
 - ❌ Ship a DESIGN.md with WCAG contrast failures — always resolve lint contrast errors before proceeding
@@ -545,8 +550,11 @@ When discussing the council with the user:
 - ✅ Present the synthesis with explicit consensus/unique/contradiction sections
 - ✅ In Phase 2b: check for existing `DESIGN.md` at workspace root before asking brand questions
 - ✅ In Phase 2b: run `npx @google/design.md lint DESIGN.md` after generating or loading DESIGN.md
-- ✅ In Phase 2b: apply DESIGN.md tokens to both outputs (arbitrary values in canvas, tailwind.config in HTML)
-- ✅ In Phase 2b: generate both `.canvas.tsx` and `ui-concept.html` in a single pass
+- ✅ In Phase 2b: apply DESIGN.md tokens to both outputs (canvas SDK theme tokens + HTML tailwind.config)
+- ✅ In Phase 2b: generate both the canvas (at `~/.cursor/projects/{workspace-id}/canvases/`) and `ui-concept.html` in a single pass
+- ✅ In Cursor Phase 2b: read `~/.cursor/skills-cursor/canvas/sdk/index.d.ts` before writing the canvas to verify available exports
+- ✅ In Cursor Phase 2b: use `useHostTheme()` for all colors — never hardcode hex values in the canvas
+- ✅ In Cursor Phase 2b: import only from `cursor/canvas` in the canvas component
 - ✅ In Phase 2b: use realistic domain data in mock data — no generic placeholders
 - ✅ In Phase 2b: wire up the primary user action as an interactive element
 - ✅ In Phase 2b: if user requests color/font changes, update DESIGN.md first, then re-derive tokens
