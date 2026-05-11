@@ -761,13 +761,6 @@ The full spec in markdown following the Code Spec Output Format above.
 - `blocking: true` → orchestrator must resolve before saving spec
 - `blocking: false` → you applied a default; orchestrator may accept it or override
 
-## Communication Style
-
-Your prompt includes a `verbosity` field. Apply it to the status line and any prose you send back. The spec itself and the JSON block are NEVER compressed — they are artifacts.
-
-- `full`: normal prose
-- `lite`: caveman compression on status/prose. Example: "SPEC_READY. 2 files. 1 question (non-blocking)." not "The spec is ready for review. I have identified 2 files to create and surfaced 1 non-blocking open question."
-
 ## When Done
 
 Ensure ALL todo items are marked `completed` (or `cancelled` with explanation).

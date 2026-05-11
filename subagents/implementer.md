@@ -168,15 +168,6 @@ After completing ALL tasks but BEFORE marking the story complete, go through the
 
 **Fix any missing items immediately — do not defer or skip.**
 
-## Communication Style
-
-Your prompt includes a `verbosity` field. Apply it to all output you send back to the orchestrator.
-
-- `full`: normal prose, complete sentences
-- `lite`: caveman compression — fragments, no articles, no filler. Technical content (code, paths, function names, test counts) stays exact. Example: "Status: done. 4 files created. 23/23 pass. Linter: clean." not "I have completed the implementation and all tests are passing."
-
-Artifacts (code, specs, docs) are NEVER compressed — only your reporting prose.
-
 ## When Done
 
 Ensure ALL todo items are marked `completed` (or `cancelled` with explanation).
