@@ -384,10 +384,10 @@ The orchestrator spawns parallel subagents for implementation, verification, and
 Phase 2B: Acceptance Checklist  →  agent drafts checklist (curl, CLI, UI steps); user approves
        ↓ (ask user to proceed)
 Phase 3: Code Spec
-  Step 1 →  code-spec-writer subagents (parallel, all stories at once, max 10)
-            ↓ collect draft specs + open_questions per story
+  Step 1 →  code-spec-writer subagents (parallel, all stories at once, max 10) — each WRITES spec to code_specs/
+            ↓ orchestrator verifies every spec file exists on disk (retry missing files)
   Step 2 →  orchestrator resolves open questions with user, presents each spec for approval
-            ↓ orchestrator writes approved specs to disk + updates state.json
+            ↓ on approval, updates state.json (path + files_to_create/modify)
        ↓ (ask user to proceed)
 Phase 4: Implementation
   Step 1 →  test-writer subagents (parallel, per batch) — writes red tests from code spec
@@ -410,7 +410,7 @@ Phase 7: Acceptance       →  agent runs automatable checks; human confirms UI 
 
 **FIRST read `phases/03-code-spec.md`** for the full orchestration workflow before executing this phase. The spec-writing methodology (task decomposition, test case tables, output format, quality checklist) is built into the `code-spec-writer` subagent type and used by the subagent directly.
 
-**The orchestrator MUST spawn `code-spec-writer` subagents — it must NOT write code specs itself.** The code-spec-writer subagent does the codebase investigation and produces a structured draft; the orchestrator resolves questions, presents specs for approval, and commits artifacts.
+**The orchestrator MUST spawn `code-spec-writer` subagents — it must NOT write code specs itself (except Step O8 failure fallback).** Each subagent investigates the codebase, **writes the spec file to disk** at the path in the prompt, and returns structured JSON. The orchestrator **verifies files exist**, resolves questions, presents specs for approval, and updates `state.json`.
 
 Phase 3 runs as a **two-step pipeline across all stories**:
 
@@ -419,7 +419,8 @@ Key responsibilities:
 1. **Collect all stories** — Read `state.json` and identify all stories that need code specs (status `not_started` or `code_spec` incomplete). This is typically all stories from Phase 2.
 2. **Build subagent prompts** — For each story, assemble a self-contained prompt containing: full user story text, acceptance criteria, design doc excerpts, the exact output file path to write, codebase references to investigate, language guidelines path, and any conventions already known from Phase 1.
 3. **Step 1 — Spawn code-spec-writer subagents** — Launch one `code-spec-writer` subagent per story (`subagent_type: "code-spec-writer"`). Each subagent writes its spec file directly to the path provided in the prompt. **Launch all subagents in a single message (parallel tool calls). Max 10 concurrent subagents.** If there are more than 10 stories, batch them (10 per batch), completing each batch before spawning the next.
-4. **Step 2 — Review written specs** — For each subagent result, read the **Structured Output JSON** returned directly: `spec_ready`, `summary`, `files_to_create`, `files_to_modify`, `open_questions`
+3b. **Verify disk writes** — Glob `code_specs/*-spec.md`; for any missing file, resume that subagent until the file exists (see `phases/03-code-spec.md` Step O3b).
+4. **Step 2 — Review written specs** — For each subagent result, read the **Structured Output JSON** returned directly: `files_written`, `spec_ready`, `summary`, `files_to_create`, `files_to_modify`, `open_questions`
    - If `spec_ready: false` → surface blocking `open_questions` to the user, apply answers to the spec file, then present the `summary` for approval
    - If `spec_ready: true` → present the `summary` to the user for approval (no need to re-read the file)
 5. **Update state.json on approval** — After user approves each spec, update that story's entry: `status: "code_spec"`, `code_spec_path`, `files_to_create`, `files_to_modify`
@@ -596,7 +597,8 @@ Key responsibilities:
 - ✅ In Phase 3: Spawn one `code-spec-writer` subagent per story (all in parallel, max 10 at once)
 - ✅ In Phase 3: Build each subagent prompt with full story text, AC, design doc excerpts, the exact output file path, and specific codebase file references
 - ✅ In Phase 3: Resolve all blocking open_questions with the user before approving a spec
-- ✅ In Phase 3: Present each spec to the user for approval using the subagent's returned summary — no need to re-read from disk
+- ✅ In Phase 3: Verify every spec file exists on disk before presenting for approval (resume subagent if missing)
+- ✅ In Phase 3: Present each spec using the subagent's `summary`; Read the file if the user asks for detail or requests changes
 - ✅ In Phase 3: Populate `files_to_create` and `files_to_modify` in `state.json` for every story before Phase 4
 - ✅ In Phase 4: Load language-specific coding guidelines from `guides/` before writing any code
 - ✅ In Phase 4: Check for file conflicts before batching stories for parallel execution

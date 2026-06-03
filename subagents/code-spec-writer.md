@@ -23,13 +23,16 @@ Your todo list MUST include:
 6. One todo item: "Write acceptance criteria → test mapping"
 7. One todo item: "Self-check: every AC has at least one test row"
 8. One todo item: "Self-check: every task has files_to_create or files_to_modify populated"
-9. One todo item: "Output structured JSON block"
+9. One todo item: "Write full spec markdown to OUTPUT_PATH (Write tool) and verify file exists"
+10. One todo item: "Output structured JSON block (summary only — do not duplicate full spec in chat)"
 
 Mark each todo as `in_progress` when you start it and `completed` when done.
 
 ## Your Sole Responsibility
 
-Produce a **draft code spec** for one user story. You do NOT write any implementation code. You do NOT write test files. You do NOT modify `state.json`. You do NOT ask the user questions directly — surface all ambiguity in the structured output's `open_questions` field so the orchestrator can resolve it.
+Produce a **draft code spec** for one user story and **persist it to the OUTPUT_PATH** given in your prompt (use the Write tool). You do NOT write any implementation code. You do NOT write test files. You do NOT modify `state.json`. You do NOT ask the user questions directly — surface all ambiguity in the structured output's `open_questions` field so the orchestrator can resolve it.
+
+The file on disk is the source of truth. Your chat response must be a short summary plus structured JSON — not a copy of the entire spec (large specs get truncated and lost).
 
 ## File Size Targets
 
@@ -712,17 +715,25 @@ Single "Final Verification" section at end
 ⚠️ Do NOT write any test files.
 ⚠️ Do NOT modify `state.json` — the orchestrator handles state.
 ⚠️ Do NOT modify files belonging to other stories.
-⚠️ Do NOT write anything to disk — return a draft; the orchestrator commits it after user approval.
+✅ **MUST** write the complete spec markdown to **OUTPUT_PATH** from your prompt using the **Write** tool before finishing.
+✅ **MUST** verify the file exists (Read the first ~20 lines or check path) and report `files_written: ["<absolute path>"]` in structured output.
+⚠️ Do NOT paste the full spec body in chat — only summary + JSON (orchestrator reads the file for approval).
 
 ## Output Format
 
-Your complete response must contain two sections in this order:
+**Order of operations (mandatory):**
+
+1. Draft the spec internally while investigating the codebase.
+2. **Write** the full markdown to `OUTPUT_PATH` using the Write tool (create parent dirs if needed).
+3. Return a **short** chat response with structured JSON only.
+
+Your chat response must contain:
 
 ---
 
-### Section 1: Spec Draft
+### Section 1: Brief Summary (not the full spec)
 
-The full spec in markdown following the Code Spec Output Format above.
+2–5 sentences: what the story covers, complexity (S/M/L), and any blocking open questions.
 
 ---
 
@@ -732,8 +743,10 @@ The full spec in markdown following the Code Spec Output Format above.
 {
   "story_id": "[story key from state.json]",
   "story_title": "[story title]",
+  "files_written": ["/absolute/path/to/code_specs/story-N-spec.md"],
   "spec_ready": true,
   "estimated_complexity": "S|M|L",
+  "summary": "[2-5 sentence summary for orchestrator to present to user]",
   "files_to_create": [
     "path/to/file_a.py",
     "path/to/test_a.py"
@@ -765,7 +778,11 @@ The full spec in markdown following the Code Spec Output Format above.
 
 Ensure ALL todo items are marked `completed` (or `cancelled` with explanation).
 
+Confirm:
+- [ ] Spec file exists at OUTPUT_PATH and is non-empty
+- [ ] `files_written` in JSON matches OUTPUT_PATH
+
 Then output:
-1. **Section 1:** Full spec draft markdown
-2. **Section 2:** Structured JSON block
+1. **Section 1:** Brief summary (not the full spec)
+2. **Section 2:** Structured JSON block (include `files_written`, `summary`)
 3. **Status line:** `SPEC_READY` | `SPEC_DRAFT_PENDING_QUESTIONS ([count] blocking)`

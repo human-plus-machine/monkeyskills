@@ -76,6 +76,16 @@ Launch one `code-spec-writer` subagent per story using the Task tool (`subagent_
 - Each subagent gets a **complete, self-contained prompt** — subagents have NO access to conversation history
 - **Do NOT pass a `model` parameter** — omit it so subagents inherit the parent's model
 
+#### Step O3b: Verify Spec Files on Disk (MANDATORY)
+
+Subagents often return "saved" in JSON without actually calling Write. **Do not trust structured output alone.**
+
+For each story, after subagents complete:
+
+1. Confirm `{workspace}/.monkeymode/{feature-name}/code_specs/{story-id}-spec.md` exists and is non-empty (Glob or Read).
+2. If missing or truncated → **resume** that subagent with: `Write the COMPLETE spec to {path} using the Write tool. Your prior response did not persist. Do not paste the full spec in chat — write the file only, then return JSON with files_written.`
+3. Only proceed to O4 when every story in the batch has a file on disk.
+
 #### Step O4: Collect Structured Output and Resolve Open Questions
 
 After subagents complete, for each story read the **Structured Output JSON** returned by the subagent:
