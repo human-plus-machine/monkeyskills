@@ -94,6 +94,20 @@ Save as `.monkeymode/{feature-name}/stories/2b-acceptance.md` using this format:
 ...
 ```
 
+### Step A3b: Map checks to regression suite IDs
+
+For every `agent-automatable` check that should become a permanent synthetic:
+
+1. Assign a **Critical Path ID** (`CP-XX`) or new journey ID (`CP-11+`) if no existing ID fits.
+2. In each checklist item, add field:
+
+**Regression ID:** `CP-03` | `new` | `n/a (human-only)`
+
+3. In Phase 3 code specs, every story with a Regression ID must create or extend
+   `auriga-connect/tests/acceptance/test_<journey>.py`.
+4. Feature owners must update `acceptance-qa.yml` scope only via pytest markers
+   (`smoke`, `qa_only`, `quarantine`) — not workflow edits.
+
 ### Step A4: Ask the User to Review
 
 Present the checklist to the user and ask:
@@ -239,4 +253,6 @@ Before finalizing:
 - [ ] All `agent-automatable` items have exact commands with no ambiguous placeholders
 - [ ] All `human-ui` items have step-by-step instructions a non-developer could follow
 - [ ] Every check has clear expected result AND failure indicators
+- [ ] Every automatable happy-path check has a Regression ID or explicit `n/a`
+- [ ] New write journeys document teardown fixture (`track_file`, `track_plan`)
 - [ ] User has reviewed and approved the checklist
