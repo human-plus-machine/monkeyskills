@@ -289,6 +289,25 @@ After completing work in a phase:
 
 **Approval is per-phase, never cumulative.** When the user says "yes", "proceed", "let's go", "continue with next steps", or any similar affirmation, this ONLY grants approval to advance to the **immediately next phase** — never beyond. After completing that next phase, you MUST stop and ask for approval again before advancing further. No user message — regardless of phrasing — should be interpreted as blanket approval to skip future phase-transition checkpoints.
 
+## Verify Assumptions with Spikes (All Phases)
+
+Across every phase, **never let an unverified assumption about third-party/library/API/runtime
+behavior become a load-bearing part of the design, spec, or implementation.** When a factual
+detail can be checked empirically (SDK type shapes, API response fields, error semantics,
+method signatures, capability/version support), run a **spike** — a small, time-boxed
+investigation that replaces the assumption with evidence — rather than guessing or shipping a
+"this may not be supported" caveat.
+
+Priority order for spike evidence: (1) inspect the actual installed code/types for the pinned
+version, (2) run a minimal reproduction, (3) read official docs/changelogs, (4) web search
+last and distrust it — if a source contradicts the installed code, the installed code wins.
+Record the result (what was verified, the evidence, the implication, and any prior assumption
+it retired) in the relevant artifact and add a References line pointing at the artifact.
+
+Spikes are especially valuable in **Phase 1 (Design)** and **Phase 3 (Code Spec)**, where a
+single wrong assumption propagates into many stories. The full methodology lives in
+`phases/01a-design-discovery.md` under "Verify with a Spike."
+
 ## Phase Reference Guides
 
 The agent should read these files from the skills directory for detailed methodology:
@@ -585,6 +604,7 @@ Key responsibilities:
 ### Always Do
 
 - ✅ Extract feature name first
+- ✅ Spike (verify empirically) any load-bearing assumption about library/API/runtime behavior instead of guessing or shipping it as a caveat; record the evidence and retire stale assumptions
 - ✅ Read state from `.monkeymode/{feature-name}/state.json`
 - ✅ Save all artifacts to workspace
 - ✅ Update state after significant actions
