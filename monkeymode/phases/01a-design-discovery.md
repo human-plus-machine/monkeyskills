@@ -16,15 +16,63 @@ A lightweight design document (~300 lines) that answers:
  
 ## Core Principles
  
-### Never Assume - Always Ask
+### Never Assume - Ask or Spike
 ```
-If you don't know a technical detail, ASK.
-Examples:
+If you don't know a technical detail, ASK or SPIKE — never silently assume.
+
+ASK the user when the detail is a product/context decision only they hold:
 - "What version of [framework] are you using?"
 - "Do you have an existing pattern for [feature]?"
 - "What's your current database schema for [entity]?"
 - "What's the expected scale? (requests/sec, data volume)"
+
+SPIKE (verify empirically) when the detail is a verifiable fact about code,
+a library, an API, or runtime behavior — the user usually can't answer these
+reliably from memory, and a wrong guess silently corrupts the design:
+- "Does this SDK's tool_result content accept a document block?"
+- "What fields does this API response actually return?"
+- "Does this adapter raise on an unknown type, or ignore it?"
+- "Is this method async? What's its real signature?"
 ```
+
+### Verify with a Spike
+
+A **spike** is a small, time-boxed investigation that replaces an assumption with
+**evidence** before the design depends on it. Spikes are first-class and encouraged in
+any phase — design assumptions about external/library/runtime behavior are the most common
+source of expensive rework, and they are cheap to disprove early.
+
+**When to run a spike (instead of guessing or asking):**
+- The design hinges on a **claim about third-party behavior** (SDK/library/API shape,
+  error semantics, capability support, version differences).
+- You're about to write "I believe X but I'm not certain" or "this may not be supported" —
+  that uncertainty is a spike trigger, not a caveat to ship.
+- A constraint would meaningfully change the architecture **if** it turned out to be true
+  (or false).
+- Two reasonable people could disagree about a factual detail that a 5-minute experiment
+  settles.
+
+**How to run a spike (ground in authoritative sources, in priority order):**
+1. **Inspect the actual installed code/types.** Read the real SDK/library source or type
+   definitions for the version the project pins (e.g. `uv run python -c "import X; ..."`,
+   read the installed `.py`/`.d.ts`/`.pyi`). This is the highest-confidence evidence.
+2. **Run a minimal reproduction.** A few lines that exercise the exact behavior in question.
+3. **Read official docs / changelogs** for the pinned version — note version-specific
+   caveats and beta/feature flags.
+4. **Web search last, and distrust it.** Blog posts and forum answers are often outdated or
+   wrong; only use them to find leads, then confirm against (1)–(3). If a source contradicts
+   the installed code, the installed code wins.
+
+**Record the result in the design doc** so it's auditable and not re-litigated:
+- State what was verified, the **evidence** (SDK version + type/source snippet, repro output),
+  and the **implication** for the design.
+- If the spike **retired** a prior assumption/constraint, say so explicitly (supersede it;
+  don't leave the stale concern lurking elsewhere in the doc).
+- Add a line to the design's **References** pointing at the artifact (file path, SDK version,
+  symbol inspected).
+
+**Keep it time-boxed.** A spike answers one factual question. If it balloons into open-ended
+exploration, stop and surface the uncertainty to the user as an explicit open decision instead.
  
 ### Top 1% Quality Standards
 Designs must address:
@@ -280,6 +328,7 @@ Before moving to Phase 1B, verify:
 - [ ] Diagram is clear and accurate
 - [ ] No ambiguous requirements
 - [ ] No assumptions without clarification
+- [ ] Every claim about third-party/library/API/runtime behavior is either spike-verified (evidence recorded) or flagged as an explicit open decision — no unverified "I believe / this may not be supported" claims left in the design
  
 ### Clarity
 - [ ] Can a developer understand the high-level approach?
@@ -292,6 +341,15 @@ Before moving to Phase 1B, verify:
 ```
 "We'll use Redis for caching"
 → Ask: "Do you already have Redis? What's your caching strategy?"
+```
+
+❌ **Shipping an unverified library/API assumption as a caveat**
+```
+"The SDK probably doesn't allow a document block inside tool_result, so we'll
+ add a text-only fallback (constraint for later)."
+→ Spike it: inspect the installed SDK types / run a repro. The constraint was
+  false — both content unions accept the block. A 5-minute spike removed an
+  entire fallback path and the rework it would have caused.
 ```
  
 ❌ **Over-engineering**
