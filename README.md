@@ -33,9 +33,10 @@ Node.js 18+ · Claude Code or Cursor
 - [**@monkeythink**](monkeythink/SKILL.md) — Problem framing, LLM council exploration, direction and risk review, optional UI concept from brand tokens, and a discovery brief for planning.
 - [**@monkeyplan**](monkeyplan/SKILL.md) — Intake, full product requirements, UX ideation, and epic/story breakdown (including optional tracker upload).
 - [**@monkeymode**](monkeymode/SKILL.md) — Design through acceptance: user stories, code specs, TDD-style implementation with parallel subagents, verification, integration, and acceptance testing.
+- [**@monkeycleaner**](monkeycleaner/SKILL.md) — Anti-slop review for code, designs, plans, and PRs: complexity, scalability/state, and observability gaps.
 - [**@commit**](commit-skill/SKILL.md) — Topic branches, phase-aware commits, optional PR body from MonkeyMode artifacts.
 
-**Pipeline:** `@monkeythink` → `@monkeyplan` → `@monkeymode` → `@commit`
+**Pipeline:** `@monkeythink` → `@monkeyplan` → `@monkeymode` → `@monkeycleaner` → `@commit`
 
 ## State and subagents
 
