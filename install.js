@@ -26,10 +26,15 @@ const REPO_ROOT = __dirname;
 const HOME      = os.homedir();
 
 const ALL_TARGETS = [
-  { id: 'claude', label: 'Claude Code', skillsDir: path.join(HOME, '.claude', 'skills'), subagentsDir: path.join(HOME, '.claude', 'subagents') },
+  { id: 'claude', label: 'Claude Code', skillsDir: path.join(HOME, '.claude', 'skills'), subagentsDir: path.join(HOME, '.claude', 'subagents'), subagentFormat: 'md' },
   // Cursor Settings / Task tool read user subagents from ~/.cursor/agents (not …/subagents).
-  { id: 'cursor', label: 'Cursor', skillsDir: path.join(HOME, '.cursor', 'skills'), subagentsDir: path.join(HOME, '.cursor', 'agents') },
+  { id: 'cursor', label: 'Cursor', skillsDir: path.join(HOME, '.cursor', 'skills'), subagentsDir: path.join(HOME, '.cursor', 'agents'), subagentFormat: 'md' },
+  // Codex CLI reads skills from ~/.agents/skills (shared "agents" convention, not ~/.codex) and
+  // custom agents as TOML from ~/.codex/agents (not markdown — see subagentToToml below).
+  { id: 'codex', label: 'Codex CLI', skillsDir: path.join(HOME, '.agents', 'skills'), subagentsDir: path.join(HOME, '.codex', 'agents'), subagentFormat: 'toml' },
 ];
+
+const TARGETS_BY_ID = new Map(ALL_TARGETS.map(t => [t.id, t]));
 
 const EXCLUDED_DIRS = new Set(['subagents', 'node_modules', '.git', '.github']);
 
@@ -42,17 +47,24 @@ function pad(str, len) {
   return str + ' '.repeat(Math.max(0, len - str.length));
 }
 
-/** Which app(s) to install into: Claude only, Cursor only, or both. */
+/** Which app(s) to install into: any single target, the legacy Claude+Cursor pair, or all three. */
 async function resolveTargets() {
-  if (args.includes('--claude-only')) return [ALL_TARGETS[0]];
-  if (args.includes('--cursor-only')) return [ALL_TARGETS[1]];
-  if (args.includes('--both')) return ALL_TARGETS;
+  if (args.includes('--claude-only')) return [TARGETS_BY_ID.get('claude')];
+  if (args.includes('--cursor-only')) return [TARGETS_BY_ID.get('cursor')];
+  if (args.includes('--codex-only')) return [TARGETS_BY_ID.get('codex')];
+  if (args.includes('--both')) return [TARGETS_BY_ID.get('claude'), TARGETS_BY_ID.get('cursor')];
+  if (args.includes('--all')) return ALL_TARGETS;
 
   const env = (process.env.MONKEYSKILLS_TARGETS || '').toLowerCase();
-  if (env === 'claude') return [ALL_TARGETS[0]];
-  if (env === 'cursor') return [ALL_TARGETS[1]];
-  if (env === 'both' || env === 'all' || env === 'claude,cursor' || env === 'cursor,claude') {
-    return ALL_TARGETS;
+  if (env === 'claude') return [TARGETS_BY_ID.get('claude')];
+  if (env === 'cursor') return [TARGETS_BY_ID.get('cursor')];
+  if (env === 'codex') return [TARGETS_BY_ID.get('codex')];
+  if (env === 'both') return [TARGETS_BY_ID.get('claude'), TARGETS_BY_ID.get('cursor')];
+  if (env === 'all') return ALL_TARGETS;
+  if (env) {
+    const ids = env.split(',').map(s => s.trim()).filter(Boolean);
+    const resolved = ids.map(id => TARGETS_BY_ID.get(id)).filter(Boolean);
+    if (resolved.length > 0) return resolved;
   }
 
   if (process.stdin.isTTY && process.stdout.isTTY) {
@@ -61,10 +73,12 @@ async function resolveTargets() {
       console.log(`\n${C.bold}Where should MonkeySkills be installed?${C.reset}`);
       console.log(`  ${C.cyan}[1]${C.reset} Claude Code only  ${C.gray}~/.claude/skills & subagents${C.reset}`);
       console.log(`  ${C.cyan}[2]${C.reset} Cursor only       ${C.gray}~/.cursor/skills & ~/.cursor/agents${C.reset}`);
-      console.log(`  ${C.cyan}[3]${C.reset} Both              ${C.gray}(recommended if you use both)${C.reset}`);
-      const line = (await rl.question(`\n${C.bold}Choice${C.reset} ${C.gray}[1-3, default 3]${C.reset}: `)).trim();
-      if (line === '1') return [ALL_TARGETS[0]];
-      if (line === '2') return [ALL_TARGETS[1]];
+      console.log(`  ${C.cyan}[3]${C.reset} Codex CLI only    ${C.gray}~/.agents/skills & ~/.codex/agents${C.reset}`);
+      console.log(`  ${C.cyan}[4]${C.reset} All three         ${C.gray}(recommended if you use more than one)${C.reset}`);
+      const line = (await rl.question(`\n${C.bold}Choice${C.reset} ${C.gray}[1-4, default 4]${C.reset}: `)).trim();
+      if (line === '1') return [TARGETS_BY_ID.get('claude')];
+      if (line === '2') return [TARGETS_BY_ID.get('cursor')];
+      if (line === '3') return [TARGETS_BY_ID.get('codex')];
       return ALL_TARGETS;
     } finally {
       rl.close();
@@ -72,8 +86,9 @@ async function resolveTargets() {
   }
 
   console.log(
-    `${C.gray}Non-interactive: installing to Claude Code and Cursor. ` +
-    `Use --claude-only, --cursor-only, or --both; or set MONKEYSKILLS_TARGETS=claude|cursor|both.${C.reset}`
+    `${C.gray}Non-interactive: installing to Claude Code, Cursor, and Codex CLI. ` +
+    `Use --claude-only, --cursor-only, --codex-only, --both (Claude+Cursor), or --all; ` +
+    `or set MONKEYSKILLS_TARGETS to claude|cursor|codex|both|all (comma-separated also works).${C.reset}`
   );
   return ALL_TARGETS;
 }
@@ -102,6 +117,39 @@ function findSubagentFiles() {
   return fs.readdirSync(dir).filter(f => f.endsWith('.md'));
 }
 
+/** Split a subagent .md file into {name, description, body} — body excludes the frontmatter block. */
+function parseSubagentFile(content) {
+  const match = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
+  if (!match) return null;
+  const frontmatter = match[1];
+  const body = match[2].trim();
+  const nameLine = frontmatter.split('\n').find(l => l.startsWith('name:'));
+  const descLine = frontmatter.split('\n').find(l => l.startsWith('description:'));
+  if (!nameLine || !descLine) return null;
+  return {
+    name: nameLine.replace('name:', '').trim().replace(/^["']|["']$/g, ''),
+    description: descLine.replace('description:', '').trim().replace(/^["']|["']$/g, ''),
+    body,
+  };
+}
+
+/** Escape a value for a TOML basic (double-quoted, single-line) string. */
+function tomlBasicString(str) {
+  return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/**
+ * Codex CLI custom agents are TOML, not markdown (developers.openai.com/codex/subagents).
+ * Claude's `model:` frontmatter (e.g. "claude-4.6-sonnet") has no Codex equivalent, so it's
+ * dropped — `model` is optional in Codex's schema and inherits from the parent session.
+ * The body goes into `developer_instructions` as a TOML literal string ('''...''') so none of
+ * the markdown's backslashes or quotes need escaping; only a literal ''' in the body would
+ * break this, which install.js checks for at the call site.
+ */
+function subagentToToml({ name, description, body }) {
+  return `name = "${tomlBasicString(name)}"\ndescription = "${tomlBasicString(description)}"\ndeveloper_instructions = '''\n${body}\n'''\n`;
+}
+
 // ── Copy helpers (always replace under chosen targets) ───────────────────────
 
 function installSkillToTargets(srcDir, skillName, targets) {
@@ -120,21 +168,40 @@ function installSkillToTargets(srcDir, skillName, targets) {
 }
 
 function installSubagentToTargets(srcFile, fileName, targets) {
-  if (!DRY_RUN) {
-    for (const t of targets) {
-      const d = path.join(t.subagentsDir, fileName);
+  const mdContent = fs.readFileSync(srcFile, 'utf8');
+  let parsed = null; // lazily parsed only if a toml target is present
+
+  for (const t of targets) {
+    const needsToml = t.subagentFormat === 'toml';
+    const destName = needsToml ? fileName.replace(/\.md$/, '.toml') : fileName;
+    const d = path.join(t.subagentsDir, destName);
+
+    let content = mdContent;
+    if (needsToml) {
+      if (!parsed) {
+        parsed = parseSubagentFile(mdContent);
+        if (!parsed) throw new Error(`${srcFile}: could not parse name/description frontmatter for Codex TOML conversion`);
+        if (parsed.body.includes("'''")) {
+          throw new Error(`${srcFile}: body contains ''' which conflicts with the TOML literal-string delimiter used for Codex conversion`);
+        }
+      }
+      content = subagentToToml(parsed);
+    }
+
+    if (!DRY_RUN) {
       if (fs.existsSync(d)) fs.rmSync(d);
       fs.mkdirSync(t.subagentsDir, { recursive: true });
-      fs.copyFileSync(srcFile, d);
+      fs.writeFileSync(d, content);
     }
   }
   return true;
 }
 
 function restartHint(targets) {
-  if (targets.length === 2) return 'Restart Claude Code and/or Cursor to pick up new skills.';
-  if (targets[0].id === 'claude') return 'Restart Claude Code to pick up new skills.';
-  return 'Restart Cursor to pick up new skills.';
+  if (targets.length === 1) return `Restart ${targets[0].label} to pick up new skills.`;
+  const labels = targets.map(t => t.label);
+  const last = labels.pop();
+  return `Restart ${labels.join(', ')} and/or ${last} to pick up new skills.`;
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -200,7 +267,7 @@ async function main() {
       const label = file.replace('.md', '');
       installSubagentToTargets(src, file, targets);
       const destHint = targets
-        .map(t => tildePath(path.join(t.subagentsDir, file)))
+        .map(t => tildePath(path.join(t.subagentsDir, t.subagentFormat === 'toml' ? file.replace(/\.md$/, '.toml') : file)))
         .join(', ');
       console.log(`  ${C.green}✓${C.reset}  ${pad(label, 16)} → ${C.gray}${destHint}${C.reset}`);
     }
