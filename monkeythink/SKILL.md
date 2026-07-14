@@ -307,7 +307,7 @@ After completing work in a phase:
 
 **Note on Phase 0 → 1:** After framing completes and preferences are collected, the transition to Phase 1 is automatic. If `council_enabled` is `true`, read `phases/01-exploration.md` — the execution path (parallel/sequential/manual) is determined by `council_mode`. If `council_enabled` is `false`, perform solo exploration in a single pass.
 
-**Note on Phase 1 → 1b:** This transition is automatic (no user confirmation needed). After council responses are received and saved, the orchestrator immediately performs synthesis. The user confirmation point is at the end of Phase 1b, before advancing to Phase 2a.
+**Note on Phase 1 → 1b:** This transition is automatic (no user confirmation needed). After council response files are verified on disk, the orchestrator immediately performs synthesis. The user confirmation point is at the end of Phase 1b, before advancing to Phase 2a.
 
 **Note on Phase 2a → 2b:** After Phase 2a (Direction Setting) completes, if `ui_concept_enabled` is `true`, ask user to confirm before generating the UI concept. If `false`, Phase 2b is skipped (`ui_concept` status set to `"skipped"`) and the agent advances to Phase 2c or Phase 3.
 
@@ -321,12 +321,13 @@ When executing a council phase (Phase 1 or Phase 2c), the orchestrator selects t
 
 1. **Reads the phase guide** — `phases/01-exploration.md` or `phases/02c-risk-challenge.md`
 2. **Constructs the council brief** — standardized input from current artifacts
-3. **Spawns 3 subagents in parallel** using the Task tool (council-claude, council-gpt, council-gemini)
-4. **All three receive the identical prompt** — same council brief + structured output format
-5. **Saves raw responses** to `council-responses/` directory
-6. **Updates council response status** in state.json as responses arrive
-7. **Handles failures gracefully** — proceed with 2 of 3; log `failed` in state
-8. **Proceeds to synthesis** automatically after all responses received
+3. **Ensures `council-responses/` exists**, then **spawns 3 subagents in parallel** using the Task tool (council-claude, council-gpt, council-gemini) with `readonly: false`
+4. **All three receive the identical brief** plus a **member-specific absolute OUTPUT_PATH**
+5. **Each subagent writes its raw response** to its OUTPUT_PATH via the Write tool
+6. **Orchestrator verifies files exist on disk** (do not trust chat JSON alone); resumes a member if its file is missing
+7. **Updates council response status** in state.json after each verified write
+8. **Handles failures gracefully** — proceed with 2 of 3; log `failed` in state
+9. **Proceeds to synthesis** automatically after verified responses are available
 
 **Minimum viable council:** At least 2 of 3 members must succeed. If only 1 succeeds, offer to retry or fall back to sequential.
 
@@ -508,6 +509,8 @@ When discussing the council with the user:
 - ❌ Create artifacts without proper workspace paths
 - ❌ Forget to load context when resuming
 - ❌ Write to state.json from within council subagents — only the orchestrator updates state
+- ❌ Trust council chat JSON without verifying the response file exists on disk
+- ❌ Spawn council subagents with `readonly: true` — they must write their OUTPUT_PATH
 - ❌ Run Phase 1 council without reading `phases/01-exploration.md` first
 - ❌ Spawn more than 3 council subagents concurrently
 - ❌ Proceed with synthesis if fewer than 2 of 3 council members responded successfully (parallel mode)
@@ -546,7 +549,8 @@ When discussing the council with the user:
 - ✅ Detect council mode before dispatching: check Task tool availability when `council_mode` is `"auto"`
 - ✅ In sequential mode: announce the limitation honestly before running the 3 persona passes
 - ✅ In manual mode: save all 3 prompt files before pausing; give clear instructions for each tool
-- ✅ Save all council raw responses to `council-responses/` before synthesizing (all modes)
+- ✅ In parallel mode: pass each council member a unique absolute OUTPUT_PATH; verify each file exists before marking `received`
+- ✅ Ensure council raw responses are in `council-responses/` before synthesizing (all modes)
 - ✅ Present the synthesis with explicit consensus/unique/contradiction sections
 - ✅ In Phase 2b: check for existing `DESIGN.md` at workspace root before asking brand questions
 - ✅ In Phase 2b: run `npx @google/design.md lint DESIGN.md` after generating or loading DESIGN.md
@@ -566,7 +570,7 @@ When discussing the council with the user:
 
 Every phase output must meet these standards:
 - **Problem Framing:** Complete — problem statement, affected parties, pain points, opportunity, constraints all populated; no vague or thin framing
-- **Council Responses:** All responses in the exact structured format from `templates/exploration-output-template.md`; saved as raw files before synthesis; council mode noted in synthesis header
+- **Council Responses:** All responses in the exact structured format from `templates/exploration-output-template.md`; present in `council-responses/` before synthesis (written by subagents in parallel mode); council mode noted in synthesis header
 - **Sequential Mode:** Limitation disclosed to user before execution; each persona pass uses correct system prompt bias; synthesis notes "sequential persona mode" explicitly
 - **Synthesis:** Explicit consensus/unique/contradiction sections; no opinion blending that obscures differences
 - **Direction Setting:** Chosen direction documented with rationale, scope sketch, success criteria, and constraints

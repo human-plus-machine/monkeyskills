@@ -102,43 +102,70 @@ Do not deviate from this format. The orchestrator that reads your response depen
 
 ## Step 3: Spawn Council Subagents in Parallel
 
-Spawn all three subagents simultaneously using the Task tool. Pass the council brief from Step 2 as each subagent's `prompt`.
+Ensure `.monkeythink/{topic-name}/council-responses/` exists. Spawn all three subagents simultaneously using the Task tool.
+
+Each subagent's `prompt` = council brief from Step 2 **plus** an absolute `OUTPUT_PATH` where that member must write its response:
+
+| Member | OUTPUT_PATH |
+|--------|-------------|
+| Claude | `{workspace}/.monkeythink/{topic-name}/council-responses/claude-exploration.md` |
+| GPT | `{workspace}/.monkeythink/{topic-name}/council-responses/gpt-exploration.md` |
+| Gemini | `{workspace}/.monkeythink/{topic-name}/council-responses/gemini-exploration.md` |
+
+Append to each prompt:
+
+```
+OUTPUT_PATH:
+{absolute path for this member}
+
+You MUST write your complete structured response to OUTPUT_PATH using the Write tool.
+Do not modify state.json or any other files. Return only a short JSON confirmation.
+```
 
 ```
 Task 1: council-claude subagent
-  - prompt: [council brief from Step 2]
+  - prompt: [council brief from Step 2] + OUTPUT_PATH for claude-exploration.md
   - subagent_type: council-claude
   - description: "Council member Claude — solution exploration"
+  - readonly: false
 
 Task 2: council-gpt subagent
-  - prompt: [council brief from Step 2]
+  - prompt: [council brief from Step 2] + OUTPUT_PATH for gpt-exploration.md
   - subagent_type: council-gpt
   - description: "Council member GPT — solution exploration"
+  - readonly: false
 
 Task 3: council-gemini subagent
-  - prompt: [council brief from Step 2]
+  - prompt: [council brief from Step 2] + OUTPUT_PATH for gemini-exploration.md
   - subagent_type: council-gemini
   - description: "Council member Gemini — solution exploration"
+  - readonly: false
 ```
 
 **CRITICAL rules for spawning:**
 - All three are launched **simultaneously** (same message, parallel Task calls)
 - Do NOT pass a `model` parameter in the Task call — each subagent's LLM is already configured independently
-- Do NOT pass any workspace context beyond the council brief — council members are stateless
-- Council members must NOT read or write any workspace files
+- Do NOT set `readonly: true` — council members must write their response files
+- Each member receives the same council brief but a **different** OUTPUT_PATH
+- Council members write **only** to their OUTPUT_PATH; they do NOT update `state.json`
 
 ---
 
-## Step 4: Receive and Save Responses
+## Step 4: Verify Disk Writes and Update State
 
-As each subagent completes, immediately:
+Subagents write their own response files. **Do not trust chat JSON alone** — verify each file exists on disk.
 
-1. **Save the raw response** to the workspace:
+As each subagent completes:
+
+1. **Verify the file on disk** (Glob or Read):
    - Claude → `.monkeythink/{topic-name}/council-responses/claude-exploration.md`
    - GPT → `.monkeythink/{topic-name}/council-responses/gpt-exploration.md`
    - Gemini → `.monkeythink/{topic-name}/council-responses/gemini-exploration.md`
 
-2. **Update state.json** for that member:
+2. **If the file is missing or empty:** Resume that subagent with:
+   `Write the COMPLETE structured response to {OUTPUT_PATH} using the Write tool. Your prior response did not persist. Do not paste the full body in chat — write the file only, then return JSON with files_written.`
+
+3. **When the file exists and has content**, update state.json for that member:
    ```json
    {
      "council": {
@@ -149,9 +176,9 @@ As each subagent completes, immediately:
    }
    ```
 
-3. **If a member fails** (error, timeout, malformed response):
+4. **If a member fails** (error, timeout, or file still missing after resume):
    - Mark as `failed` in state.json
-   - Log the error in the raw response file: `# COUNCIL MEMBER FAILED\n\nError: {error message}`
+   - Write the error to the raw response file: `# COUNCIL MEMBER FAILED\n\nError: {error message}`
    - Continue waiting for remaining members
 
 ---
@@ -353,10 +380,10 @@ When `context.council_enabled` is `false`, the orchestrator performs exploration
 Phase 1 is complete when:
 - [ ] Execution mode determined (parallel / sequential / manual) and noted in state
 - [ ] Council brief constructed from `framing.md`
-- [ ] **Parallel:** All 3 subagents spawned simultaneously; ≥2 of 3 responses received
+- [ ] **Parallel:** All 3 subagents spawned with OUTPUT_PATH; ≥2 of 3 response files verified on disk
 - [ ] **Sequential:** All 3 persona passes completed; limitation disclosed to user
 - [ ] **Manual:** All 3 prompt files exported; all 3 user-pasted responses received
-- [ ] Raw responses saved to `council-responses/` before synthesis
+- [ ] Raw responses present in `council-responses/` before synthesis (written by subagents in parallel mode; by orchestrator in sequential/manual/solo)
 - [ ] Response status updated in state.json
 - [ ] `phase_status.exploration` set to `"completed"`
 - [ ] Transition to Phase 1b initiated

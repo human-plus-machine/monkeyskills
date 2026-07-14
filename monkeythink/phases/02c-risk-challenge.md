@@ -127,28 +127,49 @@ List 2-4 assumptions this direction is taking for granted that have not been val
 
 ## Step 3: Spawn Risk Challenge Council in Parallel
 
-Spawn all three subagents simultaneously using the Task tool, identical to Phase 1. Pass the risk challenge brief as each subagent's `prompt`.
+Ensure `.monkeythink/{topic-name}/council-responses/` exists. Spawn all three subagents simultaneously using the Task tool, identical to Phase 1.
+
+Each subagent's `prompt` = risk challenge brief **plus** an absolute `OUTPUT_PATH`:
+
+| Member | OUTPUT_PATH |
+|--------|-------------|
+| Claude | `{workspace}/.monkeythink/{topic-name}/council-responses/claude-risk.md` |
+| GPT | `{workspace}/.monkeythink/{topic-name}/council-responses/gpt-risk.md` |
+| Gemini | `{workspace}/.monkeythink/{topic-name}/council-responses/gemini-risk.md` |
+
+Append to each prompt:
+
+```
+OUTPUT_PATH:
+{absolute path for this member}
+
+You MUST write your complete structured response to OUTPUT_PATH using the Write tool.
+Do not modify state.json or any other files. Return only a short JSON confirmation.
+```
 
 ```
 Task 1: council-claude subagent
-  - prompt: [risk challenge brief]
+  - prompt: [risk challenge brief] + OUTPUT_PATH for claude-risk.md
   - subagent_type: council-claude
   - description: "Council member Claude — risk challenge"
+  - readonly: false
 
 Task 2: council-gpt subagent
-  - prompt: [risk challenge brief]
+  - prompt: [risk challenge brief] + OUTPUT_PATH for gpt-risk.md
   - subagent_type: council-gpt
   - description: "Council member GPT — risk challenge"
+  - readonly: false
 
 Task 3: council-gemini subagent
-  - prompt: [risk challenge brief]
+  - prompt: [risk challenge brief] + OUTPUT_PATH for gemini-risk.md
   - subagent_type: council-gemini
   - description: "Council member Gemini — risk challenge"
+  - readonly: false
 ```
 
-Follow the same parallel execution rules from Phase 1: do NOT pass a `model` parameter, save raw responses, update state, handle failures gracefully, require ≥2 of 3 responses.
+Follow the same parallel execution rules from Phase 1: do NOT pass a `model` parameter, do NOT set `readonly: true`, verify each response file exists on disk before marking `received`, resume if missing, update state, handle failures gracefully, require ≥2 of 3 verified files.
 
-Save raw responses to:
+Expected files (written by subagents):
 - `.monkeythink/{topic-name}/council-responses/claude-risk.md`
 - `.monkeythink/{topic-name}/council-responses/gpt-risk.md`
 - `.monkeythink/{topic-name}/council-responses/gemini-risk.md`
@@ -323,10 +344,10 @@ After user confirms they are ready:
 Phase 2c is complete when:
 - [ ] Execution mode confirmed from `context.council_mode`
 - [ ] Risk challenge brief constructed from direction data and framing.md
-- [ ] **Parallel:** All 3 subagents spawned simultaneously; ≥2 of 3 responses received
+- [ ] **Parallel:** All 3 subagents spawned with OUTPUT_PATH; ≥2 of 3 risk response files verified on disk
 - [ ] **Sequential:** All 3 persona passes completed; limitation noted in synthesis header
 - [ ] **Manual:** All 3 prompt files exported; all 3 user-pasted responses received
-- [ ] Raw risk responses saved to `council-responses/` before synthesis
+- [ ] Raw risk responses present in `council-responses/` before synthesis (written by subagents in parallel mode; by orchestrator in sequential/manual)
 - [ ] Risk findings de-duplicated and prioritized
 - [ ] `risk-challenge.md` saved to workspace
 - [ ] Risk summary presented to user
