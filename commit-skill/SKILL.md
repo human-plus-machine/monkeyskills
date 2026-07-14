@@ -1,18 +1,18 @@
 ---
 name: commit
-description: Git workflow for MonkeyMode projects - always uses a topic branch prefixed `feat/` or `bugs/` from the change type (never main/develop), commits per story/phase, pushes only that branch, and optionally creates PRs to the repo default branch. Invoke with @commit or /commit after any MonkeyMode phase.
+description: Git workflow for MonkeyMode and MonkeySolve projects - always uses a topic branch prefixed `feat/` or `bugs/` from the change type (never main/develop), commits per story/phase, pushes only that branch, and optionally creates PRs to the repo default branch. Invoke with @commit or /commit after any MonkeyMode or MonkeySolve phase.
 author: MonkeyMode Contributors
 ---
  
-# Commit - Git Workflow for MonkeyMode
+# Commit - Git Workflow for MonkeyMode & MonkeySolve
  
 ## Intent
  
-This skill provides an opt-in git workflow that complements MonkeyMode. It reads MonkeyMode state and artifacts to generate intelligent commits, branches, and PRs — without coupling git logic into MonkeyMode itself.
+This skill provides an opt-in git workflow that complements MonkeyMode and MonkeySolve. It reads their state and artifacts to generate intelligent commits, branches, and PRs — without coupling git logic into either skill itself.
  
 **User invokes:** `@commit` or `/commit`
  
-**Agent performs:** Context-aware git operations based on MonkeyMode state.
+**Agent performs:** Context-aware git operations based on MonkeyMode or MonkeySolve state.
  
 ## When to Activate
  
@@ -24,14 +24,17 @@ This skill provides an opt-in git workflow that complements MonkeyMode. It reads
  
 ### Step 1: Detect Context
  
-1. **Check for MonkeyMode state:** Look for `{workspace}/.monkeymode/*/state.json`
-   - If multiple features exist, list them and ask which one
-   - If one feature exists, use it automatically
-   - If no MonkeyMode state exists, fall back to [Generic Mode](#generic-mode)
+1. **Check for state, in this order:**
+   - `{workspace}/.monkeymode/*/state.json` (MonkeyMode)
+   - `{workspace}/.monkeysolve/*/state.json` (MonkeySolve)
+   - If both exist, ask which one this commit is for
+   - If multiple features/problems exist under one, list them and ask which one
+   - If neither exists, fall back to [Generic Mode](#generic-mode)
 2. **Read state.json** to determine:
-   - `feature_name` — used for branch naming
+   - `feature_name` (MonkeyMode) or `problem_name` (MonkeySolve) — used for branch naming
    - `current_phase` — determines commit message prefix
-   - `stories` — identifies which stories have been implemented
+   - `stories` (MonkeyMode) — identifies which stories have been implemented
+   - `worktree_path` (MonkeySolve, if `execution_mode` was `"worktree"`) — **run every command in this workflow from that directory instead of the main checkout**
 3. **Run `git status`** to see what's changed
 4. **Run `git diff --stat`** to understand the scope of changes
 5. **If nothing to commit**, tell the user and stop
@@ -70,11 +73,11 @@ Slug tips: lowercase, hyphens, short (e.g. `feat/user-auth-oauth`, `bugs/login-r
  
 ### Step 3: Stage & Commit
  
-Analyze the changed files against MonkeyMode state to create meaningful commits.
+Analyze the changed files against the detected skill's state to create meaningful commits.
  
 #### Commit Strategy
  
-**Phase-aware commits** — Group changes based on what MonkeyMode phase produced them:
+**Phase-aware commits** — Group changes based on what phase produced them:
  
 | Changed files match | Commit message format | Example |
 |---|---|---|
@@ -88,7 +91,10 @@ Analyze the changed files against MonkeyMode state to create meaningful commits.
 | Files spanning multiple stories | One commit per story (split by story file boundaries) | Multiple commits |
 | Integration phase files | `feat({feature}): integrate stories and add e2e tests` | `feat(user-auth): integrate stories and add e2e tests` |
 | `.monkeymode/**/acceptance-report.md` or acceptance phase | `test({feature}): run acceptance checklist` | `test(user-auth): run acceptance checklist` |
-| Unrecognized files (no story match) | `chore({feature}): update {brief description}` | `chore(user-auth): update dependencies` |
+| `.monkeysolve/**/plan.md` or `unknowns.md` | `docs({problem}): design plan` | `docs(checkout-double-charge): design plan` |
+| Source files matching `plan.md`'s Work Breakdown | `feat({problem}): {plan summary}` or `fix({problem}): {plan summary}` (prefix matches branch) | `fix(checkout-double-charge): prevent duplicate payment intent` |
+| `.monkeysolve/**/verify-report.md` | `test({problem}): verify implementation` | `test(checkout-double-charge): verify implementation` |
+| Unrecognized files (no story/plan match) | `chore({feature}): update {brief description}` | `chore(user-auth): update dependencies` |
  
 #### Splitting Logic
  
@@ -103,7 +109,7 @@ When changes span multiple stories:
 For each commit:
 1. **Show the user** what will be committed (files, message) and ask for confirmation
 2. Stage the relevant files with `git add`
-3. Commit with the generated message, appending a `Made-with: MonkeyMode` trailer on a blank-line-separated line at the end of the message body — run outside the sandbox with `required_permissions: ["all"]` since pre-commit hooks require full system access
+3. Commit with the generated message, appending a `Made-with: {MonkeyMode|MonkeySolve}` trailer (matching whichever state was detected in Step 1) on a blank-line-separated line at the end of the message body — run outside the sandbox with `required_permissions: ["all"]` since pre-commit hooks require full system access
  
    Example commit message format:
    ```
@@ -139,8 +145,9 @@ After every successful commit, **automatically push the current branch to remote
 When creating a PR:
 1. Ensure changes are pushed first from a **topic branch** (`feat/...` or `bugs/...`) (push if not); base branch = repo default (`main` / `develop` / etc.), compare branch = your branch — **never** open a PR from `main`/`develop`/`master` as the head branch for new work in this workflow
 2. **Generate PR title:** Match the branch intent — `feat: {name}` for `feat/...` branches, `fix: {name}` for `bugs/...` branches (humanized slug)
-3. **Generate PR body** from MonkeyMode artifacts:
- 
+3. **Generate PR body** from the detected skill's artifacts:
+
+**MonkeyMode:**
 ```markdown
 ## Summary
  
@@ -162,8 +169,30 @@ When creating a PR:
 - Acceptance Checklist: `.monkeymode/{feature}/stories/2b-acceptance.md`
 - Code Specs: `.monkeymode/{feature}/code_specs/`
 ```
- 
-4. Create PR using `gh pr create`
+
+**MonkeySolve:**
+```markdown
+## Summary
+
+{use .monkeysolve/{problem-name}/explainer.md's "Summary" section as-is}
+
+## Changes
+
+{use explainer.md's "Changes" section as-is}
+
+## Verification
+
+{use explainer.md's "Verification" section as-is}
+
+## MonkeySolve Artifacts
+
+- Plan: `.monkeysolve/{problem-name}/plan.md`
+- Implementation Notes: `.monkeysolve/{problem-name}/implementation-notes.md`
+- Verification Report: `.monkeysolve/{problem-name}/verify-report.md`
+- Understanding Check: `.monkeysolve/{problem-name}/quiz.md`
+```
+
+4. Create PR using `gh pr create` — if `worktree_path` is set, run this from that directory
 5. Return the PR URL to the user
  
 ## Generic Mode
