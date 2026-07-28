@@ -34,6 +34,7 @@ Node.js 18+ · Claude Code or Cursor
 - [**@monkeyplan**](monkeyplan/SKILL.md) — Intake, full product requirements, UX ideation, and epic/story breakdown (including optional tracker upload).
 - [**@monkeymode**](monkeymode/SKILL.md) — Design through acceptance: user stories, code specs, TDD-style implementation with parallel subagents, verification, integration, and acceptance testing.
 - [**@monkeycleaner**](monkeycleaner/SKILL.md) — Anti-slop review for code, designs, plans, and PRs: complexity, scalability/state, and observability gaps.
+- [**@architect**](architect/SKILL.md) — Design and seed MonkeyApp topologies: Main Agent, specialists, workspaces, routines, skills, and MCP connectors (branch harness or live home).
 - [**@commit**](commit-skill/SKILL.md) — Topic branches, phase-aware commits, optional PR body from MonkeyMode artifacts.
 
 **Pipeline:** `@monkeythink` → `@monkeyplan` → `@monkeymode` → `@monkeycleaner` → `@commit`
