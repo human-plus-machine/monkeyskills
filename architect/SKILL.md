@@ -149,7 +149,7 @@ Tools, steps, do-nots.
 Reserved / internal slugs — do not create or overwrite:
 `about-monkeybot`, `creating-custom-agents`, `creating-skills`,
 `customizing-the-default-agent`, `managing-routines`, `monitoring-monkeybot`,
-`document-analysis`, `browser`, `officecli`, `image-generator`, `loop`.
+`browser`, `officecli`, `image-generator`, `loop`.
 
 Install helpers must resolve the skills root from the **catalog source file**
 (`import.meta.url` / `__dirname`), not the caller's path.
