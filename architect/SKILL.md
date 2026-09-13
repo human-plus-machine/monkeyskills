@@ -129,7 +129,7 @@ Key TypeScript types: `src/shared/types.ts` (`AgentDraft`, `RoutineRecord`,
 
 App skills for chat-driven single edits (not full topology):
 `resources/Skills/creating-custom-agents`, `managing-routines`,
-`creating-skills`, `customizing-the-default-agent`.
+`creating-skills`.
 
 ## 3. Skills packages
 
@@ -147,8 +147,8 @@ Tools, steps, do-nots.
 ```
 
 Reserved / internal slugs — do not create or overwrite:
-`about-monkeybot`, `creating-custom-agents`, `creating-skills`,
-`customizing-the-default-agent`, `managing-routines`, `monitoring-monkeybot`,
+`creating-custom-agents`, `creating-skills`,
+`managing-routines`,
 `browser`, `officecli`, `image-generator`, `loop`.
 
 Install helpers must resolve the skills root from the **catalog source file**
