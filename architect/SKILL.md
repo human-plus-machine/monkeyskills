@@ -72,7 +72,7 @@ Interview only what is missing. From freeform requirements, produce this brief
 ## Routines
 | ID | Name | Scope | Target / pipeline | Trigger | Prompt summary |
 |---|---|---|---|---|---|
-| … | … | main \| workspace:<id> | agent id **or** `A → B ∥ C → D` | interval\|wallclock | … |
+| … | … | main \| workspace:<id> | agent id **or** `A → B ∥ C → D` | interval\|wallclock\|once | … |
 
 For multi-agent rows, expand under the table:
 
@@ -223,7 +223,7 @@ export type RoutineSeed = {
   name?: string
   /** Mirrors first step when `stages` is set (compat / list search). */
   prompt: string
-  trigger: { type: 'interval' | 'wallclock'; value: string }
+  trigger: { type: 'interval' | 'wallclock' | 'once'; value: string }
   /** Mirrors first step's agent_id when `stages` is set. */
   target_agent_id: string
   workspace_id?: string | null
@@ -241,6 +241,7 @@ Multi-agent design rules:
 - Do not invent a DAG — only ordered `stages` with sequential or parallel steps.
 - Later steps receive prior results as context; prompts may use `{{prev}}`.
 - Workspace-scoped step `agent_id`s must be **members** of that workspace.
+- `once` value is a future local `YYYY-MM-DDTHH:mm` (no timezone suffix). The routine turns off after that run.
 - Full JSON authoring detail: `resources/Skills/managing-routines/SKILL.md`.
 
 - `installMissingSeeds` — write only if file absent; **never overwrite**
