@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Last Updated:** 2026  
-**Target:** Production Java systems requiring high quality, security, and maintainability
+**Target:** Production Java systems requiring high quality, security, and maintainability. Framework-agnostic — load the appropriate framework supplement (Spring Boot, Quarkus, etc.) for framework-specific patterns.
 
 ---
 
@@ -323,14 +323,13 @@ src/
 │   │   │   ├── dto/
 │   │   │   └── port/            # Port interfaces
 │   │   ├── infrastructure/      # External concerns
-│   │   │   ├── persistence/     # JPA repositories
+│   │   │   ├── persistence/     # Repository implementations
 │   │   │   ├── client/          # HTTP/gRPC clients
-│   │   │   └── config/          # Spring configuration
+│   │   │   └── config/          # Framework configuration
 │   │   └── presentation/        # Controllers/handlers
 │   │       ├── controller/
 │   │       └── mapper/
 │   └── resources/
-│       ├── application.yml
 │       └── db/migration/        # Flyway/Liquibase
 └── test/
     ├── java/com/example/myapp/
@@ -343,7 +342,7 @@ src/
 
 **Dependency Injection (prefer constructor injection):**
 ```java
-@Service
+// DI wiring is framework-specific — see framework supplement for annotations
 public class UserService {
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
@@ -371,8 +370,7 @@ public interface UserRepository {
   List<User> findByRole(String role);
 }
 
-// Infrastructure layer - implementation
-@Repository
+// Infrastructure layer - implementation (framework-specific, see framework supplement)
 public class JpaUserRepository implements UserRepository {
   private final JpaUserEntityRepository jpaRepository;
   private final UserMapper mapper;
@@ -402,10 +400,11 @@ public class User {
 }
 
 // DTO - data transfer only
+// Validation approach depends on framework — see framework supplement
 public record CreateUserRequest(
-    @NotBlank String email,
-    @NotBlank @Size(min = 2, max = 100) String name,
-    @NotNull Role role
+    String email,
+    String name,
+    Role role
 ) {}
 
 public record UserResponse(
@@ -502,11 +501,9 @@ try {
 
 **Always:**
 ```java
-// [GOOD] Catch specific exceptions
+// [GOOD] Catch specific exceptions and let domain exceptions propagate
 try {
   user = findUser(userId);
-} catch (NotFoundException e) {
-  return ResponseEntity.notFound().build();
 } catch (DatabaseException e) {
   log.error("Database error fetching user {}: {}", userId, e.getMessage(), e);
   throw e;
@@ -656,36 +653,7 @@ class UserServiceTest {
 - Fast execution (< 10ms per test)
 - Use AssertJ for fluent assertions
 
-**Integration Tests:**
-```java
-@SpringBootTest
-@Testcontainers
-class UserRepositoryIntegrationTest {
-
-  @Container
-  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
-
-  @DynamicPropertySource
-  static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", postgres::getJdbcUrl);
-    registry.add("spring.datasource.username", postgres::getUsername);
-    registry.add("spring.datasource.password", postgres::getPassword);
-  }
-
-  @Autowired
-  private UserRepository userRepository;
-
-  @Test
-  void shouldPersistAndRetrieveUser() {
-    User saved = userRepository.save(new User("test@example.com", "Test User"));
-
-    Optional<User> found = userRepository.findById(saved.getId());
-
-    assertThat(found).isPresent();
-    assertThat(found.get().getEmail()).isEqualTo("test@example.com");
-  }
-}
-```
+**Integration Tests:** Framework-specific setup (test containers, app context bootstrapping) is covered in the framework supplement.
 
 ---
 
@@ -695,25 +663,24 @@ class UserRepositoryIntegrationTest {
 
 **Input Validation:**
 ```java
-import jakarta.validation.constraints.*;
+// Validate all inputs at application boundaries
+// Validation annotations/approach depends on framework — see framework supplement
 
-public record CreateUserRequest(
-    @NotBlank @Email
-    String email,
-
-    @NotBlank @Size(min = 2, max = 100)
-    @Pattern(regexp = "^[a-zA-Z\\s'-]+$", message = "Name contains invalid characters")
-    String name,
-
-    @NotNull
-    Role role
-) {}
+public String sanitizeInput(String input) {
+  if (input == null || input.isBlank()) {
+    throw new ValidationException("Input must not be blank");
+  }
+  if (!input.matches("^[a-zA-Z\\s'-]+$")) {
+    throw new ValidationException("Input contains invalid characters");
+  }
+  return input;
+}
 
 // Sanitize HTML to prevent XSS
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
 
-public String sanitizeInput(String input) {
+public String sanitizeHtml(String input) {
   PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS);
   return policy.sanitize(input);
 }
@@ -727,42 +694,35 @@ PreparedStatement stmt = connection.prepareStatement(
 stmt.setString(1, email);
 stmt.setString(2, status);
 
-// [GOOD] JPA named parameters
-@Query("SELECT u FROM User u WHERE u.email = :email")
-Optional<User> findByEmail(@Param("email") String email);
-
 // [BAD] Never string concatenation
 String query = "SELECT * FROM users WHERE email = '" + email + "'";
 ```
 
 **Secrets Management:**
 ```java
-// [GOOD] Use environment variables or secret manager
-@Value("${app.api-key}")
-private String apiKey;
+// [GOOD] Use environment variables or a secret manager
+String apiKey = System.getenv("APP_API_KEY");
 
-// [GOOD] Use vault integration
-@VaultPropertySource("secret/myapp")
-@Configuration
-public class VaultConfig { }
+// [GOOD] For vault integration, use your framework's configuration mechanism
+// See framework supplement for framework-specific property/secret injection
 
 // [BAD] Never hardcode secrets
 private static final String API_KEY = "sk-1234567890abcdef"; // NEVER
 ```
 
-**Password Hashing:**
+**Password Hashing (use BCrypt with work factor >= 12):**
 ```java
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.mindrot.jbcrypt.BCrypt;
 
 public class PasswordService {
-  private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(12);
+  private static final int BCRYPT_WORK_FACTOR = 12;
 
   public String hashPassword(String rawPassword) {
-    return encoder.encode(rawPassword);
+    return BCrypt.hashpw(rawPassword, BCrypt.gensalt(BCRYPT_WORK_FACTOR));
   }
 
   public boolean verifyPassword(String rawPassword, String hashedPassword) {
-    return encoder.matches(rawPassword, hashedPassword);
+    return BCrypt.checkpw(rawPassword, hashedPassword);
   }
 }
 ```
@@ -847,7 +807,6 @@ users.forEach(this::process);
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Cache;
 
-@Service
 public class UserService {
   private final Cache<Long, User> userCache = Caffeine.newBuilder()
       .maximumSize(10_000)
@@ -861,17 +820,8 @@ public class UserService {
 ```
 
 **Connection pooling:**
-```yaml
-# application.yml - HikariCP settings
-spring:
-  datasource:
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      idle-timeout: 300000
-      connection-timeout: 20000
-      max-lifetime: 1200000
-```
+
+Connection pool settings (e.g., HikariCP pool size, idle timeout) depend on the framework — see framework supplement.
 
 ---
 
@@ -885,29 +835,39 @@ spring:
 - Regular security updates
 - Minimize dependency count
 
+> **Note on versions shown below:** The specific version numbers in the snippets that follow (JUnit Jupiter, Mockito, AssertJ, SLF4J, etc.) are **illustrative minimums**, not a mandate. Use the versions declared in your project's build file or inherited from a framework BOM (e.g., Spring Boot, Quarkus, Jakarta EE). The coding rules in this guide apply to any recent major version — they do not depend on the exact patch version.
+
 **Maven BOM for version alignment:**
 ```xml
 <!-- pom.xml -->
 <dependencyManagement>
   <dependencies>
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-dependencies</artifactId>
-      <version>3.3.0</version>
-      <type>pom</type>
-      <scope>import</scope>
-    </dependency>
+    <!-- Import a BOM appropriate to your framework — see framework supplement -->
   </dependencies>
 </dependencyManagement>
 
 <dependencies>
   <dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-web</artifactId>
+    <groupId>org.slf4j</groupId>
+    <artifactId>slf4j-api</artifactId>
+    <version>2.0.13</version>
   </dependency>
   <dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-test</artifactId>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter</artifactId>
+    <version>5.10.3</version>
+    <scope>test</scope>
+  </dependency>
+  <dependency>
+    <groupId>org.assertj</groupId>
+    <artifactId>assertj-core</artifactId>
+    <version>3.26.0</version>
+    <scope>test</scope>
+  </dependency>
+  <dependency>
+    <groupId>org.mockito</groupId>
+    <artifactId>mockito-junit-jupiter</artifactId>
+    <version>5.12.0</version>
     <scope>test</scope>
   </dependency>
 </dependencies>
@@ -917,13 +877,17 @@ spring:
 ```kotlin
 // build.gradle.kts
 plugins {
-  id("org.springframework.boot") version "3.3.0"
-  id("io.spring.dependency-management") version "1.1.5"
+  java
 }
 
 dependencies {
-  implementation("org.springframework.boot:spring-boot-starter-web")
-  testImplementation("org.springframework.boot:spring-boot-starter-test")
+  implementation("org.slf4j:slf4j-api:2.0.13")
+  // Add framework-specific dependencies — see framework supplement
+  // Test dependency versions below are illustrative minimums; prefer the version
+  // declared in your build file or inherited from a framework BOM.
+  testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
+  testImplementation("org.assertj:assertj-core:3.26.0")
+  testImplementation("org.mockito:mockito-junit-jupiter:5.12.0")
 }
 ```
 
@@ -987,7 +951,7 @@ public class CorrelationIdFilter implements Filter {
 
 **Logback configuration (JSON):**
 ```xml
-<!-- logback-spring.xml -->
+<!-- logback.xml -->
 <configuration>
   <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
     <encoder class="net.logstash.logback.encoder.LogstashEncoder">
@@ -1091,8 +1055,8 @@ public class CorrelationIdFilter implements Filter {
 - `Error Prone` - Compile-time bug catching (Google)
 
 **Testing:**
-- `JUnit 5` - Testing framework
-- `Mockito` - Mocking library
+- `JUnit Jupiter` - Testing framework (version per build file / framework BOM)
+- `Mockito` - Mocking library (version per build file / framework BOM)
 - `AssertJ` - Fluent assertions
 - `JaCoCo` - Code coverage
 - `Testcontainers` - Integration test infrastructure
@@ -1241,7 +1205,7 @@ tasks.test {
 - [Clean Architecture (Robert C. Martin)](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [OWASP Java Security](https://cheatsheetseries.owasp.org/cheatsheets/Java_Security_Cheat_Sheet.html)
 - [JUnit 5 User Guide](https://junit.org/junit5/docs/current/user-guide/)
-- [Spring Boot Reference](https://docs.spring.io/spring-boot/docs/current/reference/html/)
+- See the framework supplement for framework-specific documentation links
 
 ---
 

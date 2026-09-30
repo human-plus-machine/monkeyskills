@@ -105,7 +105,7 @@ Store as `direction.scope_sketch`.
 List 2-4 success criteria — they can be quantitative ('reduce processing time by 50%')
 or qualitative ('the ops team stops needing to use the manual workaround').
 
-These don't need to be final — we'll refine them in the PRT. But having a signal now
+These don't need to be final — we'll refine them in the requirements doc. But having a signal now
 helps us evaluate whether the direction is worth pursuing."
 ```
 
@@ -190,10 +190,12 @@ in '{chosen direction}'. This usually surfaces 3-6 issues worth addressing befor
 we write requirements.
 
 1. Yes — run the risk challenge
-2. No — skip to discovery brief"
+2. No — skip the risk challenge"
 ```
 
-**If `false`:** Skip directly to Phase 3.
+If the user declines, set `context.risk_challenge_enabled: false` and `phase_status.risk_challenge: "skipped"`.
+
+**If `false`:** Skip Phase 2c (set `phase_status.risk_challenge: "skipped"`).
 
 ---
 
@@ -214,13 +216,11 @@ we write requirements.
    }
    ```
 
-2. If risk challenge accepted:
-   - Set `current_phase: "2b"`
-   - Read `phases/02c-risk-challenge.md`
-
-3. If risk challenge skipped:
-   - Set `phase_status.risk_challenge: "skipped"`, `current_phase: "3"`
-   - Read `phases/03-discovery-brief.md`
+2. Route to the next phase in fixed order **2b → 2c → 3**:
+   - If `context.ui_concept_enabled` is `true`: set `current_phase: "2b"` and read `phases/02b-ui-concept.md` (after user confirmation). Phase 2b then routes to 2c or 3.
+   - Else set `phase_status.ui_concept: "skipped"`, then:
+     - If `context.risk_challenge_enabled` is `true` (risk challenge accepted): set `current_phase: "2c"` and read `phases/02c-risk-challenge.md`
+     - Else (risk challenge declined or disabled): set `phase_status.risk_challenge: "skipped"`, `current_phase: "3"` and read `phases/03-discovery-brief.md`
 
 ---
 

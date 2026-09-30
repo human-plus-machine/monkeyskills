@@ -73,6 +73,8 @@ Read `.monkeyplan/{feature-name}/prt.md`. Extract:
 - Design System & Implementation notes from Section 8
 - Non-functional requirements relevant to the prototype (performance, accessibility, browser support)
 
+**Design token file (read-if-present):** If `.monkeyplan/{feature-name}/DESIGN.md` exists (copied there by `@monkeythink` Phase 3, or placed by the user), read it and use its tokens (colors, typography, spacing, rounded, primary button) as the design token source instead of re-asking brand questions. If it is absent, fall back to a `DESIGN.md` at the workspace root if one exists; otherwise continue with the PRT Section 8 design system as usual. Never block on its absence.
+
 ### Step 2: Build Component Inventory
 
 For each functional requirement and UI/UX requirement in the PRT, identify the design system component(s) needed. Reference the project's design system catalog (from PRT Section 8).

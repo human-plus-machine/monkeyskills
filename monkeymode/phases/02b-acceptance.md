@@ -26,7 +26,7 @@ Read the following artifacts before writing anything:
 2. `design/1b-contracts.md` — API contracts and payloads
 3. `stories/user_stories.md` — All acceptance criteria from every story
 
-From these, derive three categories of checks:
+From these, derive four categories of checks:
 
 **Category 1 — Happy Path Flows**
 The primary end-to-end flows a user would perform. Cover every story's main success case.
@@ -37,6 +37,15 @@ Things that should fail gracefully. Invalid inputs, missing auth, duplicate acti
 **Category 3 — Integration Scenarios**
 Flows that cross story boundaries — e.g. create data in Story 1, consume it in Story 2.
 
+**Category 4 — Security Scenarios**
+Derived from 1C Security Design and 1B Authorization Matrix:
+- Authentication boundaries (401 cases)
+- Authorization boundaries (403 / IDOR cases)
+- Input abuse (oversized payload, injection strings — expect safe rejection)
+- Rate limiting (429 when exceeded)
+- Security headers present on HTTP responses (if web-facing)
+- Sensitive data absent from error responses and logs
+
 ### Step A2: Classify Each Check
 
 For each check, classify it:
@@ -46,8 +55,9 @@ For each check, classify it:
 | `agent-automatable` | The agent can run this via curl, CLI, or shell command in Phase 7 |
 | `human-ui` | Requires a browser — the human must perform this step |
 | `human-verify` | The agent can trigger it but the human must visually confirm the result |
+| `security` | Any Category 4 (Security Scenarios) item. Also carries a **Mode** (`agent-automatable`, `human-ui`, or `human-verify`) saying how it is executed. Failures are **blocking** in Phase 7 unless the user accepts documented risk |
 
-**Aim for at least 50% `agent-automatable` checks** — anything with an API or CLI surface can be automated.
+**Aim for at least 50% automatable checks (`agent-automatable`, or `security` items whose Mode is `agent-automatable`)** — anything with an API or CLI surface can be automated.
 
 ### Step A3: Write the Checklist
 
@@ -65,7 +75,8 @@ Save as `.monkeymode/{feature-name}/stories/2b-acceptance.md` using this format:
 ## Happy Path Flows
 
 ### AC-001: {Check Title}
-**Type:** agent-automatable | human-ui | human-verify
+**Type:** agent-automatable | human-ui | human-verify | security
+**Mode:** {only for `security` items: agent-automatable | human-ui | human-verify}
 **Story:** {story title this maps to}
 **Acceptance Criterion:** {the exact criterion from stories/user_stories.md this satisfies}
 
@@ -92,6 +103,13 @@ Save as `.monkeymode/{feature-name}/stories/2b-acceptance.md` using this format:
 
 ### AC-00N: {Check Title}
 ...
+
+---
+
+## Security Scenarios
+
+### AC-00N: {Check Title}
+...
 ```
 
 ### Step A4: Ask the User to Review
@@ -103,12 +121,15 @@ Present the checklist to the user and ask:
 - {N} happy path flows ({N} agent-automatable, {N} human-ui)
 - {N} error/edge cases ({N} agent-automatable, {N} human-verify)
 - {N} integration scenarios ({N} agent-automatable, {N} human-ui)
+- {N} security scenarios ({N} agent-automatable, {N} human-verify)
 
-Are there any user flows, edge cases, or integration scenarios I missed?
+Are there any user flows, edge cases, integration scenarios, or security scenarios I missed?
 Any checks you'd like to add, remove, or reword before we proceed to Phase 3?"
 ```
 
 Incorporate all feedback, update the file, then ask for final approval before advancing.
+
+Critique is optional — only if the user asks; see `{skill_dir}/monkeymode/guides/PHASE-CRITIQUE-LOOP.md`.
 
 ### Step A5: Update State
 
@@ -236,6 +257,9 @@ Before finalizing:
 - [ ] Every user story's primary acceptance criterion has at least one check
 - [ ] At least one error/edge case per story
 - [ ] At least one cross-story integration scenario
+- [ ] At least one authz boundary test per resource type
+- [ ] At least one negative security input test per public endpoint
+- [ ] Security scenarios trace back to 1C threat model or 1B auth matrix
 - [ ] All `agent-automatable` items have exact commands with no ambiguous placeholders
 - [ ] All `human-ui` items have step-by-step instructions a non-developer could follow
 - [ ] Every check has clear expected result AND failure indicators

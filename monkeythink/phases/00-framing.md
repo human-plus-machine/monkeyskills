@@ -16,7 +16,7 @@ The output (`framing.md`) becomes the council brief input for Phase 1. A thin or
 Jumping straight to solution exploration without structured framing produces:
 - Solutions that solve the wrong problem
 - Council output that's superficial because the problem context is unclear
-- Discovery briefs that PRT cannot easily consume
+- Discovery briefs that MonkeyPlan cannot easily consume
 
 Phase 0 front-loads all problem understanding so Phase 1 can produce high-quality, specific exploration.
 
@@ -130,7 +130,7 @@ After collecting all answers, present a summary:
 ```
 "Here's what I've captured about the problem space:
 
-**Topic:** {topic_name}
+**Topic:** {feature-name}
 
 **Who is affected:** {who_is_affected}
 
@@ -175,10 +175,10 @@ Once the user approves the summary:
 
 ## Framing Output Format
 
-Save `{workspace}/.monkeythink/{topic-name}/framing.md` with the following structure:
+Save `{workspace}/.monkeythink/{feature-name}/framing.md` with the following structure:
 
 ```markdown
-# Problem Framing: {topic-name}
+# Problem Framing: {feature-name}
 
 **Created:** {ISO8601 date}
 **Status:** Completed

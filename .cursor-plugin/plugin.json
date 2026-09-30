@@ -10,9 +10,25 @@
     "../monkeythink",
     "../monkeyplan",
     "../monkeymode",
+    "../monkeymode-lite",
+    "../monkeytriage",
     "../monkeycleaner",
     "../architect",
-    "../commit-skill"
+    "../design-context",
+    "../commit-skill",
+    "../explore",
+    "../scope",
+    "../prototype",
+    "../story-spec",
+    "../qa-automation",
+    "../engineering-hld",
+    "../pr-review",
+    "../pr-merge",
+    "../perf-review",
+    "../code-simplifier",
+    "../document-codebase",
+    "../agent-authoring",
+    "../markitdown"
   ],
   "rules": "../rules"
 }

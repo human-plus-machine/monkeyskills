@@ -58,11 +58,14 @@ For each story, assemble a self-contained prompt containing:
 - Full user story text (from `user_stories.md`)
 - All acceptance criteria (from `2b-acceptance.md`)
 - Paths to the three design docs (`1a-discovery.md`, `1b-contracts.md`, `1c-operations.md`)
-- Language guidelines path (e.g. `guides/PYTHON-CODING-GUIDELINES.md`)
-- The exact output path where the subagent must write the spec: `{workspace}/.monkeymode/{feature-name}/code_specs/{story-id}-spec.md`
+- Language guidelines path matching `detected_stack.language` (resolved as `{skill_dir}/monkeymode/guides/PYTHON-CODING-GUIDELINES.md`), plus the framework supplement (e.g. `{skill_dir}/monkeymode/guides/PYTHON-FASTAPI-SUPPLEMENT.md`) when `detected_stack.framework` has one, plus the platform supplement (`{skill_dir}/monkeymode/guides/{PLATFORM}-PLATFORM-SUPPLEMENT.md`) only when `detected_stack.platform_supplement_loaded == true`
+- Security inputs: the "Security Design" section of `1c-operations.md` and the "Authorization Matrix" + "Security Contract Patterns" of `1b-contracts.md`
+- Any `architectural_guidance` from state (design-context hints) that applies to the story
+- The exact output path where the subagent must write the spec: `{workspace}/.monkeymode/{feature-name}/code_specs/story-N-spec.md` (`N` = the story's number; the integration story uses `story-N-integration-spec.md`)
 - Specific codebase reference files to investigate (similar services, repositories, test files — identified from Phase 1 design docs)
 - Any conventions already confirmed in Phase 1 (or instruct subagent to discover them)
 - Explicit out-of-scope items from the user story
+- The required Security spec sections (see "Required Spec Sections (Security)" below)
 
 Use the prompt template below.
 
@@ -82,7 +85,7 @@ Subagents often return "saved" in JSON without actually calling Write. **Do not 
 
 For each story, after subagents complete:
 
-1. Confirm `{workspace}/.monkeymode/{feature-name}/code_specs/{story-id}-spec.md` exists and is non-empty (Glob or Read).
+1. Confirm `{workspace}/.monkeymode/{feature-name}/code_specs/story-N-spec.md` exists and is non-empty (Glob or Read).
 2. If missing or truncated → **resume** that subagent with: `Write the COMPLETE spec to {path} using the Write tool. Your prior response did not persist. Do not paste the full spec in chat — write the file only, then return JSON with files_written.`
 3. Only proceed to O4 when every story in the batch has a file on disk.
 
@@ -152,6 +155,10 @@ If a `code-spec-writer` subagent fails or does not produce a usable spec file:
 2. Fall back: write that story's spec directly as the orchestrator — read the design docs, decompose tasks, define function signatures and test cases following the same structure
 3. Continue processing other stories normally
 
+### Integration Story
+
+If Phase 2 produced a story with `type: "integration"`, it also gets a code spec in this phase (same subagent; output path `code_specs/story-N-integration-spec.md`, where `N` is the integration story's number). Its spec covers the shared-file wiring, cross-story seams, and security at those seams. It is written after (or alongside) the other specs so it can reference their file lists.
+
 ### Subagent Prompt Template
 
 Each subagent receives a self-contained prompt with all necessary story-specific context.
@@ -174,7 +181,8 @@ Each subagent receives a self-contained prompt with all necessary story-specific
 ## Output File
 
 Write the completed spec to this exact path:
-{workspace}/.monkeymode/{feature-name}/code_specs/{story-id}-spec.md
+{workspace}/.monkeymode/{feature-name}/code_specs/story-N-spec.md
+(`N` = the story number; the integration story uses `story-N-integration-spec.md`)
 
 ## Files to Read on Startup
 
@@ -186,13 +194,23 @@ Read ALL of these before writing the spec:
 - {workspace}/.monkeymode/{feature-name}/design/1c-operations.md
 - {workspace}/.monkeymode/{feature-name}/stories/user_stories.md
 
-**Language-specific coding guidelines (pick ONE):**
+**Security baseline (always read):**
+- {workspace}/.monkeymode/{feature-name}/design/1c-operations.md — "Security Design" section
+- {workspace}/.monkeymode/{feature-name}/design/1b-contracts.md — "Authorization Matrix" + "Security Contract Patterns"
+
+**Language-specific coding guidelines (pick the ONE matching detected_stack.language):**
 - Python: {skill_dir}/monkeymode/guides/PYTHON-CODING-GUIDELINES.md
 - Java: {skill_dir}/monkeymode/guides/JAVA-CODING-GUIDELINES.md
 - Angular: {skill_dir}/monkeymode/guides/ANGULAR-CODING-GUIDELINES.md
 - .NET/C#: {skill_dir}/monkeymode/guides/DOTNET-CODING-GUIDELINES.md
 - React: {skill_dir}/monkeymode/guides/REACT-CODING-GUIDELINES.md
 - Terraform: {skill_dir}/monkeymode/guides/TERRAFORM-CODING-GUIDELINES.md
+
+**Framework / cloud supplements (load when detected_stack names them; supplements take precedence over the language guide where they conflict):**
+- Java: `{skill_dir}/monkeymode/guides/JAVA-SPRING-BOOT-SUPPLEMENT.md` or `JAVA-QUARKUS-SUPPLEMENT.md`
+- Python: `{skill_dir}/monkeymode/guides/PYTHON-FASTAPI-SUPPLEMENT.md` or `PYTHON-DJANGO-SUPPLEMENT.md`
+- Terraform: `{skill_dir}/monkeymode/guides/TERRAFORM-AWS-SUPPLEMENT.md` or `TERRAFORM-GCP-SUPPLEMENT.md`
+- Platform supplement (only if `detected_stack.platform_supplement_loaded == true`): `{skill_dir}/monkeymode/guides/{PLATFORM}-PLATFORM-SUPPLEMENT.md` (see `_PLATFORM-SUPPLEMENT-TEMPLATE.md`)
 
 ## Codebase References (Investigate These Before Planning)
 
@@ -208,6 +226,27 @@ Read these existing files to understand patterns you must follow:
 ## Out of Scope
 
 {Explicit out-of-scope items from the user story and design docs}
+
+## Required Spec Sections (Security)
+
+Every code spec MUST include these sections:
+
+### Security Implementation
+
+| Control (from 1C/1B) | Implementation Task | Test Task |
+|----------------------|---------------------|-----------|
+| Resource ownership check | Validate user_id == auth subject in service layer | test_cannot_read_other_users_favorite |
+| Parameterized queries | Use ORM/repository — no string concatenation | test_sql_injection_payload_rejected |
+| No secrets in logs | Redact token fields in structured logger | test_logs_do_not_contain_bearer_token |
+
+### SEC-* Security Test Cases
+
+| ID | Scenario | Input | Expected |
+|----|----------|-------|----------|
+| SEC-001 | IDOR | User A token + User B resource ID | 403 |
+| SEC-002 | Missing auth | No Authorization header | 401 |
+
+Controls that do not apply to this story must be listed with a one-line "N/A because ..." rather than omitted.
 ```
 
 **CRITICAL:** Subagents write the spec file to the output path provided. They do NOT update `state.json` — the orchestrator updates state after user approval.

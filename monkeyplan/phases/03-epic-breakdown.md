@@ -313,7 +313,7 @@ After the user approves the epic breakdown, ask:
    "I'll create the following in [Tracker / Project]:
    - [N] epics (one per epic card)
    - [M] stories as child issues under each epic
-   - Priority labels: Must → High, Should → Medium, Could → Low
+   - Priority labels: Must → Highest, Should → High, Could → Medium
    
    Proceed?"
    ```

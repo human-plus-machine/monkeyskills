@@ -28,7 +28,7 @@ Read `context.council_mode` from state.json:
 - **`"sequential"`** → Skip to [Sequential Persona Fallback](#sequential-persona-fallback)
 - **`"manual"`** → Skip to [Manual Export](#manual-export)
 - **`"auto"`** → Attempt to detect Task tool availability:
-  - Attempt a minimal Task tool probe (e.g. a no-op generalPurpose task with a short description)
+  - Attempt a minimal Task tool probe (e.g. a no-op general-purpose task with a short description)
   - If it **succeeds**: proceed with parallel mode (Steps 1–6 below)
   - If it **fails or is unavailable**: announce fallback and skip to [Sequential Persona Fallback](#sequential-persona-fallback):
     ```
@@ -72,7 +72,7 @@ Update state:
 
 ## Step 2: Construct the Council Brief
 
-Read `{workspace}/.monkeythink/{topic-name}/framing.md` and construct the council brief. The brief is the identical prompt sent to all three council members.
+Read `{workspace}/.monkeythink/{feature-name}/framing.md` and construct the council brief. The brief is the identical prompt sent to all three council members.
 
 **Council Brief Structure:**
 
@@ -102,15 +102,15 @@ Do not deviate from this format. The orchestrator that reads your response depen
 
 ## Step 3: Spawn Council Subagents in Parallel
 
-Ensure `.monkeythink/{topic-name}/council-responses/` exists. Spawn all three subagents simultaneously using the Task tool.
+Ensure `.monkeythink/{feature-name}/council-responses/` exists. Spawn all three subagents simultaneously using the Task tool.
 
 Each subagent's `prompt` = council brief from Step 2 **plus** an absolute `OUTPUT_PATH` where that member must write its response:
 
 | Member | OUTPUT_PATH |
 |--------|-------------|
-| Claude | `{workspace}/.monkeythink/{topic-name}/council-responses/claude-exploration.md` |
-| GPT | `{workspace}/.monkeythink/{topic-name}/council-responses/gpt-exploration.md` |
-| Gemini | `{workspace}/.monkeythink/{topic-name}/council-responses/gemini-exploration.md` |
+| Claude | `{workspace}/.monkeythink/{feature-name}/council-responses/claude-exploration.md` |
+| GPT | `{workspace}/.monkeythink/{feature-name}/council-responses/gpt-exploration.md` |
+| Gemini | `{workspace}/.monkeythink/{feature-name}/council-responses/gemini-exploration.md` |
 
 Append to each prompt:
 
@@ -158,9 +158,9 @@ Subagents write their own response files. **Do not trust chat JSON alone** — v
 As each subagent completes:
 
 1. **Verify the file on disk** (Glob or Read):
-   - Claude → `.monkeythink/{topic-name}/council-responses/claude-exploration.md`
-   - GPT → `.monkeythink/{topic-name}/council-responses/gpt-exploration.md`
-   - Gemini → `.monkeythink/{topic-name}/council-responses/gemini-exploration.md`
+   - Claude → `.monkeythink/{feature-name}/council-responses/claude-exploration.md`
+   - GPT → `.monkeythink/{feature-name}/council-responses/gpt-exploration.md`
+   - Gemini → `.monkeythink/{feature-name}/council-responses/gemini-exploration.md`
 
 2. **If the file is missing or empty:** Resume that subagent with:
    `Write the COMPLETE structured response to {OUTPUT_PATH} using the Write tool. Your prior response did not persist. Do not paste the full body in chat — write the file only, then return JSON with files_written.`
@@ -243,7 +243,7 @@ biases — not three genuinely different LLMs. The diversity is stylistic, not a
 
 For each pass, prepend the persona system prompt below to the standard council brief (from Step 2 of the parallel flow), then generate a full council response using the structured format from `templates/exploration-output-template.md`.
 
-**Pass 1 — Analytical (Claude-style)**
+**Pass 1 — Claude-style (analytical)**
 ```
 You are reasoning in an analytical, structured mode. Focus on:
 - Systematic decomposition of the problem into components
@@ -252,9 +252,9 @@ You are reasoning in an analytical, structured mode. Focus on:
 - What could go wrong technically
 Be thorough and precise. Favor structured lists and explicit reasoning chains.
 ```
-Save to: `.monkeythink/{topic-name}/council-responses/analytical-exploration.md`
+Save to: `.monkeythink/{feature-name}/council-responses/claude-exploration.md`
 
-**Pass 2 — Pragmatic (GPT-style)**
+**Pass 2 — GPT-style (pragmatic)**
 ```
 You are reasoning in a pragmatic, outcome-oriented mode. Focus on:
 - What users actually need and will adopt
@@ -263,9 +263,9 @@ You are reasoning in a pragmatic, outcome-oriented mode. Focus on:
 - Organizational feasibility and stakeholder concerns
 Be direct and practical. Favor concrete recommendations over exhaustive analysis.
 ```
-Save to: `.monkeythink/{topic-name}/council-responses/pragmatic-exploration.md`
+Save to: `.monkeythink/{feature-name}/council-responses/gpt-exploration.md`
 
-**Pass 3 — Expansive (Gemini-style)**
+**Pass 3 — Gemini-style (expansive)**
 ```
 You are reasoning in a broad, exploratory mode. Focus on:
 - Adjacent opportunities and non-obvious angles
@@ -274,7 +274,7 @@ You are reasoning in a broad, exploratory mode. Focus on:
 - Long-term possibilities beyond the immediate scope
 Be generative and wide-ranging. Surface directions others might not consider.
 ```
-Save to: `.monkeythink/{topic-name}/council-responses/expansive-exploration.md`
+Save to: `.monkeythink/{feature-name}/council-responses/gemini-exploration.md`
 
 ### Update state after all 3 passes
 
@@ -282,9 +282,9 @@ Save to: `.monkeythink/{topic-name}/council-responses/expansive-exploration.md`
 {
   "council": {
     "exploration_responses": {
-      "analytical": "received",
-      "pragmatic": "received",
-      "expansive": "received"
+      "claude": "received",
+      "gpt": "received",
+      "gemini": "received"
     }
   }
 }
@@ -310,10 +310,10 @@ and I'll synthesize them."
 
 Construct the council brief (Step 2 of the parallel flow). Then generate 3 prompt files, each combining the persona system prompt with the council brief:
 
-Save to `.monkeythink/{topic-name}/council-prompts/`:
-- `01-analytical-prompt.md` — Analytical persona + council brief
-- `02-pragmatic-prompt.md` — Pragmatic persona + council brief
-- `03-expansive-prompt.md` — Expansive persona + council brief
+Save to `.monkeythink/{feature-name}/council-prompts/`:
+- `01-claude-prompt.md` — Claude-style (analytical) persona + council brief
+- `02-gpt-prompt.md` — GPT-style (pragmatic) persona + council brief
+- `03-gemini-prompt.md` — Gemini-style (expansive) persona + council brief
 
 Each file starts with:
 ```markdown
@@ -332,21 +332,21 @@ Run it and paste the full response back to your AI IDE.
 ### Pause and wait
 
 ```
-"3 council prompt files saved to .monkeythink/{topic-name}/council-prompts/.
+"3 council prompt files saved to .monkeythink/{feature-name}/council-prompts/.
 
 Steps:
-1. Open 01-analytical-prompt.md → paste into Claude.ai (or any tool)
-2. Open 02-pragmatic-prompt.md → paste into ChatGPT
-3. Open 03-expansive-prompt.md → paste into Gemini
+1. Open 01-claude-prompt.md → paste into Claude.ai (or any tool)
+2. Open 02-gpt-prompt.md → paste into ChatGPT
+3. Open 03-gemini-prompt.md → paste into Gemini
 4. Paste all 3 responses back here
 
 I'll synthesize them once I have all three."
 ```
 
 Wait for the user to paste all 3 responses. Save each verbatim to `council-responses/`:
-- `analytical-exploration.md`
-- `pragmatic-exploration.md`
-- `expansive-exploration.md`
+- `claude-exploration.md`
+- `gpt-exploration.md`
+- `gemini-exploration.md`
 
 Then proceed to Phase 1b normally.
 
@@ -358,7 +358,7 @@ When `context.council_enabled` is `false`, the orchestrator performs exploration
 
 1. Announce: "Exploring the problem space from a single perspective."
 2. Read `framing.md` and generate 3 solution directions using the structured format from `templates/exploration-output-template.md`
-3. Save to `.monkeythink/{topic-name}/council-responses/solo-exploration.md`
+3. Save to `.monkeythink/{feature-name}/council-responses/solo-exploration.md`
 4. Update state: `council.enabled: false`, all `exploration_responses` set to `"skipped"`
 5. Proceed to Phase 1b — synthesis will note this was solo exploration and skip consensus/divergence analysis
 

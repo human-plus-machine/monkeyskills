@@ -1,6 +1,6 @@
 ---
 name: monkeymode
-description: MonkeyMode - Full Self Design, Develop, Deploy - Guides from feature idea to production through structured phases (Design → User Stories → Code Spec → Implementation → Verification → Integration). Creates state-tracked artifacts in your workspace for seamless continuation across sessions.
+description: MonkeyMode - Full Self Design, Develop, Deploy - Guides from feature idea to production through structured phases (Design → User Stories → Acceptance Checklist → Code Spec → Implementation → Verification → Integration → Acceptance), with security built into every phase. Creates state-tracked artifacts in your workspace for seamless continuation across sessions.
 author: MonkeyMode Contributors
 ---
 
@@ -10,17 +10,30 @@ author: MonkeyMode Contributors
 
 This skill orchestrates a complete feature development lifecycle through structured phases, with all artifacts saved in the user's workspace and state tracked for seamless continuation.
 
-**User invokes:** `/monkeymode for [feature]`
+**User invokes:** `/monkeymode for [feature]` (or delegated from `@monkeytriage` after triage)
+
+> If you arrived here via `@monkeytriage`, triage has already run and `context.workflow_tier: "full"` is set in `state.json`. Read state and resume at `current_phase` — do not re-run triage.
 
 **Agent guides through:**
-1. **Phase 1: Design** - Create comprehensive technical design
+1. **Phase 1: Design** - Create comprehensive technical design (stack detection, discovery, contracts, operations)
 2. **Phase 2: User Stories** - Decompose into parallelizable stories
 3. **Phase 2B: Acceptance Checklist** - Draft the manual + automatable acceptance criteria
 4. **Phase 3: Code Spec** - Detailed implementation plan per story
 5. **Phase 4: Implementation** - Test-writer then implementer subagents (parallel)
 6. **Phase 5: Verification** - Confirm implementation matches requirements
-7. **Phase 6: Integration** - Wire stories together, shared files, e2e tests
-8. **Phase 7: Acceptance** - Execute the acceptance checklist; feature marked complete only after all checks pass
+7. **Phase 6: Integration** - Implement the integration story (shared files, wiring, e2e tests) and run post-integration verification
+8. **Phase 7: Acceptance** - Execute the acceptance checklist (including blocking security scenarios); run your security/QA gate before marking complete
+
+> **Note:** Infrastructure (IaC) is handled inside Phase 1C as an optional step — the agent decides from the design whether new/changed infrastructure is needed and only then generates and validates IaC. Code-only changes that ride on existing infrastructure skip it.
+
+> **Note:** Security is a cross-cutting capability woven through every phase — not a separate phase. See [Security Capability](#security-capability) for the normative reference.
+
+## Path Conventions
+
+- `{skill_dir}` is the directory that contains the installed skill folders (for example `~/.claude/skills` or `~/.cursor/skills`). `{skill_dir}/monkeymode/guides/X.md` is therefore this skill's guide `X.md`.
+- Bare `guides/…` and `phases/…` paths written inside this skill are relative to the `monkeymode` skill folder (`{skill_dir}/monkeymode/`).
+- Subagents do not share the orchestrator's skill-folder context. Any guide path passed in a subagent prompt MUST be the resolved absolute form (`{skill_dir}/monkeymode/guides/…`).
+- `{workspace}` is the user's project root; all generated artifacts live under `{workspace}/.monkeymode/{feature-name}/`.
 
 ## Workspace Setup
 
@@ -31,13 +44,16 @@ When `/monkeymode` is invoked, **ALWAYS**:
 1. **Extract feature name** from user's request (convert to kebab-case)
 2. **Check for state file:** Read `{workspace}/.monkeymode/{feature-name}/state.json`
 3. **If state file doesn't exist:**
-   - Ask about Q&A logging (see [Q&A Logging Setup](#qa-logging-setup))
-   - Create `.monkeymode/{feature-name}/` directory in workspace
-   - Create initial `state.json` with `current_phase: "1a"` and feature name
-   - Start Phase 1A (Design Discovery)
+   - **If** `{workspace}/.explore/{feature-name}/design/design.md` exists with completed explore state (`phase_status.design_capture` completed, or explore `current_phase` is `"5"` / `"completed"`): do **not** write a blank `current_phase: "1a"` state. Announce that an explore design was found, read the `explore` skill's `phases/05-handoff.md`, and execute the explore skill's handoff for the Full tier. Then resume from the written state's `current_phase`.
+   - **Else:**
+     - Ask about Q&A logging (see [Q&A Logging](#qa-logging))
+     - Create `.monkeymode/{feature-name}/` directory in workspace
+     - Create initial `state.json` with `current_phase: "1a"` and feature name
+     - Start Phase 1A (Design Discovery)
 4. **If state file exists:**
    - Read current phase and resume from there
    - Load context (feature name, selected story, etc.)
+   - **If `context.explore_handoff` is `true`:** design was imported from `@explore`. Do **not** re-run Phase 1 discovery interviews. Read `.monkeymode/{feature-name}/design/1a-discovery.md`, `1b-contracts.md`, `1c-operations.md` (and `explore-reference/` if present). **Verify `context.detected_stack` is populated** — if missing, run Phase 1A Step 0 only before continuing. Announce: "Resuming from @explore handoff — design complete, starting at Phase {current_phase}."
 
 ### Initial Preferences Setup
 
@@ -90,7 +106,7 @@ The agent MUST create and maintain this file at `{workspace}/.monkeymode/{featur
     "design_docs": {
       "1a_discovery": ".monkeymode/{feature-name}/design/1a-discovery.md",
       "1b_contracts": ".monkeymode/{feature-name}/design/1b-contracts.md",
-      "1c_operations": ".monkeymode/{feature-name}/design/1c-operations.md",
+      "1c_operations": ".monkeymode/{feature-name}/design/1c-operations.md"
     },
     "user_stories_doc": ".monkeymode/{feature-name}/stories/user_stories.md",
     "acceptance_checklist": ".monkeymode/{feature-name}/stories/2b-acceptance.md",
@@ -108,6 +124,7 @@ The agent MUST create and maintain this file at `{workspace}/.monkeymode/{featur
     "status": "not_started",
     "shared_files_merged": [],
     "integration_tests_added": 0,
+    "post_integration_verification": "pending",
     "completed_at": null
   },
   "acceptance": {
@@ -120,11 +137,58 @@ The agent MUST create and maintain this file at `{workspace}/.monkeymode/{featur
     "completed_at": null
   },
   "context": {
-    "save_qa_log": true
+    "workflow_tier": "full",
+    "save_qa_log": true,
+    "detected_stack": {
+      "language": "java|python|typescript|csharp|hcl|null",
+      "framework": "spring-boot|quarkus|micronaut|fastapi|django|flask|angular|react|nextjs|aspnet-core|null",
+      "framework_version": "string|null",
+      "build_tool": "gradle|maven|uv|poetry|pip|npm|pnpm|yarn|dotnet|terraform|null",
+      "test_framework": "junit|pytest|jest|vitest|xunit|nunit|null",
+      "cloud_provider": "aws|gcp|azure|null",
+      "platform": "<name>|null",
+      "platform_version": "string|null",
+      "platform_supplement_loaded": false,
+      "platform_supplement_warnings": []
+    },
+    "infra_required": null,
+    "explore_handoff": false,
+    "explore_path": null,
+    "architectural_guidance": {
+      "source": null,
+      "clouds": [],
+      "domains": [],
+      "pillar_profile": [],
+      "framework_checks": [],
+      "contract_delta": [],
+      "integration_style": null,
+      "degradation_notes": []
+    }
   },
   "last_updated": "ISO8601 timestamp"
 }
 ```
+
+> `context.workflow_tier` is set only when the feature was routed here by `@monkeytriage`; it may be omitted otherwise. `context.detected_stack` is written in Phase 1A Step 0. `context.explore_handoff` (boolean) and `context.explore_path` (string, e.g. `.explore/{feature-name}/`) are optional: they are written only by the explore skill's handoff when the design was imported from `@explore`, and may be omitted otherwise. `context.infra_required` is set during Phase 1C (Step 10B): `false` for code-only changes that existing CI/CD can deploy, `true` when IaC is generated and validated. It stays `null` until Phase 1C runs.
+
+Do **not** add `phase_critique` to the initial `state.json`. That object appears only after the user asks for phase critique; shape is in `guides/PHASE-CRITIQUE-LOOP.md` (State). Critique appends to workspace file `critique-log.md` (not an `artifacts` key). Absence of `phase_critique` means it was not run.
+
+### Architectural Guidance (Pre-Seeded from `@design-context`, Optional)
+
+The `context.architectural_guidance` block is populated during **Phase 1A Step 0.5** when a `@design-context` context bus is present at `.design-context/{feature-name}/design-context.md`. It is **read-if-present**: when the bus is absent, the block stays at its empty defaults and MonkeyMode derives every axis itself. When present, MonkeyMode pre-seeds from it instead of re-deriving — the design-context skill decides, MonkeyMode enforces and builds.
+
+| Field | Meaning | Source key in `design-context.md` |
+|---|---|---|
+| `source` | Path to the consumed bus, or `null` if none | — |
+| `clouds` | Target cloud(s) for this feature | `cloud_framework_axis.clouds` |
+| `domains` | Domains touched + source-of-truth/derived-view routing | `semantic_axis.domain_routing` |
+| `pillar_profile` | Which cloud-framework pillars matter most | `cloud_framework_axis.pillar_profile` |
+| `framework_checks` | Per-resource Well-Architected / framework checks | `cloud_framework_axis.framework_checks` |
+| `contract_delta` | Per-contract change type, breaking flag, known consumers — fed into Phase 1B contract design | `semantic_axis.contract_delta` |
+| `integration_style` | Recommended event-driven vs synchronous style + rationale | `integration_style` |
+| `degradation_notes` | Axes that could not be fully resolved — surfaced verbatim; MonkeyMode re-derives degraded axes | `degradation_notes` |
+
+The cloud-framework fields (`clouds`, `pillar_profile`, `framework_checks`) feed **Phase 1C** (IaC design); the contract delta feeds **Phase 1B**. MonkeyMode MUST NOT block, warn, or error when the bus is absent, and MUST NOT treat a degraded axis as authoritative.
 
 ### Per-Story State (Added After Phase 2)
 
@@ -139,7 +203,7 @@ After user stories are generated in Phase 2, the agent adds a `stories` object w
       "code_spec_path": ".monkeymode/{feature-name}/code_specs/story-1-spec.md",
       "assigned_to": null,
       "current_task": null,
-      "files_to_create": ["src/embeddings/interface.py", "src/embeddings/bedrock.py"],
+      "files_to_create": ["src/embeddings/interface.py", "src/embeddings/client.py"],
       "files_to_modify": [],
       "blocked_by_rework": null,
       "verification": {
@@ -158,7 +222,7 @@ After user stories are generated in Phase 2, the agent adds a `stories` object w
       "code_spec_path": ".monkeymode/{feature-name}/code_specs/story-2-spec.md",
       "assigned_to": null,
       "current_task": null,
-      "files_to_create": ["src/vector_store/interface.py", "src/vector_store/databricks.py"],
+      "files_to_create": ["src/vector_store/interface.py", "src/vector_store/client.py"],
       "files_to_modify": [],
       "blocked_by_rework": null,
       "verification": {
@@ -191,6 +255,7 @@ All generated files go in the **user's workspace** (NOT in the skills directory)
 │   └── {feature-name}/
 │       ├── state.json              # State tracking (agent creates this)
 │       ├── qa-log.md               # OPTIONAL: Q&A log (only if user opts in)
+│       ├── critique-log.md         # OPTIONAL: only if the user asked for phase critique
 │       ├── design/
 │       │   ├── 1a-discovery.md      # Phase 1A: Discovery & Core Design
 │       │   ├── 1b-contracts.md      # Phase 1B: Detailed Contracts
@@ -287,7 +352,17 @@ After completing work in a phase:
 4. If yes → Update state.json current_phase, start next phase
 5. If no → Keep in current phase for refinements
 
+Do **not** run phase critique unless the user asked (see Optional Phase Critique). Do not block this sequence on critique.
+
 **Approval is per-phase, never cumulative.** When the user says "yes", "proceed", "let's go", "continue with next steps", or any similar affirmation, this ONLY grants approval to advance to the **immediately next phase** — never beyond. After completing that next phase, you MUST stop and ask for approval again before advancing further. No user message — regardless of phrasing — should be interpreted as blanket approval to skip future phase-transition checkpoints.
+
+### Optional Phase Critique
+
+Do **not** run critique on your own. If the user says `run phase critique`, `critique this phase`, or `critique the phase we just finished`, follow `{skill_dir}/monkeymode/guides/PHASE-CRITIQUE-LOOP.md` with an **explicit** `completed_phase_key` for the phase that just finished. Never infer that key from `current_phase`. Absence of `phase_critique` in state means it was not run.
+
+Eligible keys: `design_1a`, `design_1b`, `design_1c`, `user_stories`, `acceptance_checklist`, `code_spec`, `implementation`, `verification`, `integration`, `acceptance`.
+
+When spawning the independent critic Task, pass **`inherit` only** — do not pass another `model` slug. All other MonkeyMode subagents (`implementer`, `verifier`, `reworker`, `code-spec-writer`, `test-writer`) — **Do NOT pass a `model` parameter.**
 
 ## Verify Assumptions with Spikes (All Phases)
 
@@ -312,17 +387,18 @@ single wrong assumption propagates into many stories. The full methodology lives
 
 The agent should read these files from the skills directory for detailed methodology:
 
-- **Phase 1A:** Read `phases/01a-design-discovery.md` - Discovery, Architecture, Core Data Model
-- **Phase 1B:** Read `phases/01b-design-contracts.md` - API Contracts, Integration, Testing
-- **Phase 1C:** Read `phases/01c-design-operations.md` - Security, Performance, Deployment, Observability, Risk
-- **Phase 2:** Read `phases/02a-user-stories.md` - Story decomposition methodology
-- **Phase 2B:** Read `phases/02b-acceptance.md` - Draft acceptance checklist (curl commands, CLI checks, UI steps) from the approved stories and design docs
-- **Phase 3:** Read `phases/03-code-spec.md` - Code spec creation methodology. **Important:** Create code specs for all stories before moving to Phase 4 (the orchestrator needs complete file lists for conflict detection).
-- **Phase 4:** Read `phases/04-implementation.md` - Implementation methodology (two-step: test-writer then implementer subagents, parallel)
-- **Phase 5:** Read `phases/05-verification.md` - Verification of implementation against requirements
-- **Phase 6:** Read `phases/06-integration.md` - Cross-story integration and wiring
-- **Phase 7:** Read `phases/07-acceptance.md` - Execute acceptance checklist; agent runs automatable checks, human confirms UI items; feature marked complete after all checks pass
-- **Rework:** Read `phases/rework.md` - Structured rework when feedback, bugs, or changed requirements require revisiting previous phases
+- **Phase 1A:** Read `phases/01a-design-discovery.md` - Stack detection (Step 0), optional `design-context.md` pre-seed, Discovery, Architecture, Core Data Model, Security Context discovery, CI/CD security tooling inventory
+- **Phase 1B:** Read `phases/01b-design-contracts.md` - API Contracts, Integration, Testing, Security contract patterns, Authorization Matrix, Security testing
+- **Phase 1C:** Read `phases/01c-design-operations.md` - Database migration strategy, Security Design (threat model, OWASP ASVS mapping, supply chain), Performance, Deployment, Infrastructure decision + optional IaC generation, Observability, Risk
+- **Phase 2:** Read `phases/02a-user-stories.md` - Story decomposition methodology, security acceptance criteria per story, shared file conflict analysis, integration story
+- **Phase 2B:** Read `phases/02b-acceptance.md` - Draft acceptance checklist (curl commands, CLI checks, UI steps) from the approved stories and design docs, including security scenarios
+- **Phase 3:** Read `phases/03-code-spec.md` - Code spec creation methodology (includes required SEC-* security sections). **Important:** Create code specs for all stories before moving to Phase 4 (the orchestrator needs complete file lists for conflict detection).
+- **Phase 4:** Read `phases/04-implementation.md` - Implementation methodology (two-step: test-writer then implementer subagents, parallel; per-batch security checks)
+- **Phase 5:** Read `phases/05-verification.md` - Verification of implementation against requirements (includes test correction audit and security verification baseline)
+- **Phase 6:** Read `phases/06-integration.md` - Integration story implementation, cross-story wiring, security at integration seams, post-integration verification
+- **Phase 7:** Read `phases/07-acceptance.md` - Execute acceptance checklist; agent runs automatable checks, human confirms UI items; security scenarios are blocking; run your security/QA gate and produce `deployment-clearance.md` before marking complete
+- **Optional phase critique:** Read `guides/PHASE-CRITIQUE-LOOP.md` — only if the user asks; does not block phase advance
+- **Rework:** Read `phases/rework.md` - Structured rework when feedback, bugs, or changed requirements require revisiting previous phases (includes security vulnerability, dependency, and design-gap types)
 
 ### When to Load the Rework Guide
 
@@ -338,21 +414,65 @@ The agent should read `phases/rework.md` when ANY of these occur:
 - Code review feedback requires changes beyond the current implementation task
 - Integration between stories fails due to contract mismatches
 - New requirements emerge that affect completed phases
+- Security vulnerability, CVE, or failed security/QA gate requires design/spec/implementation rework
 
 ### Language-Specific Coding Guidelines
 
-The `guides/` directory contains coding guidelines for specific programming languages. The agent should load the appropriate guide **before starting Phase 4 (Implementation)** based on the project's primary language:
+The `{skill_dir}/monkeymode/guides/` directory contains coding guidelines organized as a **base guide per language** plus optional **framework**, **cloud-provider**, and **platform** supplements. Before starting Phase 4 (Implementation), load the appropriate guides based on `context.detected_stack` in state.json (populated during Phase 1A discovery). Supplements stack in precedence order — platform > cloud-provider > framework > base — so platform invariants always win when guidance conflicts.
 
-- **Python:** Read `guides/PYTHON-CODING-GUIDELINES.md` - Enterprise-grade Python standards (style, type hints, architecture, testing, security, performance)
-- **Java:** Read `guides/JAVA-CODING-GUIDELINES.md` - Enterprise-grade Java standards (Google Java Style, generics, Javadoc, Spring DI, JUnit 5, security, performance)
-- **Angular:** Read `guides/ANGULAR-CODING-GUIDELINES.md` - Enterprise-grade Angular/TypeScript standards (component patterns, signals, strict mode, testing, security, performance)
-- **.NET / C#:** Read `guides/DOTNET-CODING-GUIDELINES.md` - Enterprise-grade .NET/C# standards (Microsoft conventions, nullable types, async/await, xUnit, EF Core, security)
-- **React:** Read `guides/REACT-CODING-GUIDELINES.md` - Enterprise-grade React/TypeScript standards (Server Components, hooks, React Compiler, testing, security, performance)
-- **Terraform:** Read `guides/TERRAFORM-CODING-GUIDELINES.md` - Enterprise-grade Terraform/IaC standards (HCL style, module structure, validation, state management, security, testing)
+**Step 1 — Always load the base language guide:**
 
-Additionally, `guides/IMPLEMENTATION-PATTERNS.md` contains language-agnostic reference examples for testing, error handling, logging, and common architecture patterns. Subagents reference this file during Phase 4.
+- **Python:** Read `{skill_dir}/monkeymode/guides/PYTHON-CODING-GUIDELINES.md` - Framework-agnostic Python standards (style, type hints, architecture, testing, security, performance)
+- **Java:** Read `{skill_dir}/monkeymode/guides/JAVA-CODING-GUIDELINES.md` - Framework-agnostic Java standards (Google Java Style, generics, Javadoc, Clean Architecture, JUnit, security, performance)
+- **Angular:** Read `{skill_dir}/monkeymode/guides/ANGULAR-CODING-GUIDELINES.md` - Angular/TypeScript standards (component patterns, signals, strict mode, testing, security, performance)
+- **.NET / C#:** Read `{skill_dir}/monkeymode/guides/DOTNET-CODING-GUIDELINES.md` - .NET/C# standards (Microsoft conventions, nullable types, async/await, xUnit, EF Core, security)
+- **React:** Read `{skill_dir}/monkeymode/guides/REACT-CODING-GUIDELINES.md` - React/TypeScript standards (Server Components, hooks, React Compiler, testing, security, performance)
+- **Terraform:** Read `{skill_dir}/monkeymode/guides/TERRAFORM-CODING-GUIDELINES.md` - Terraform/IaC standards (HCL style, module structure, validation, state management, security, testing)
 
-When implementing code, follow the loaded language guidelines for all code style, architecture, testing, and quality decisions. If no guideline exists for the project's language, follow established conventions found in the existing codebase.
+**Step 2 — Load the framework supplement (if one exists):**
+
+- Java + Spring Boot: Read `{skill_dir}/monkeymode/guides/JAVA-SPRING-BOOT-SUPPLEMENT.md`
+- Java + Quarkus: Read `{skill_dir}/monkeymode/guides/JAVA-QUARKUS-SUPPLEMENT.md`
+- Python + FastAPI: Read `{skill_dir}/monkeymode/guides/PYTHON-FASTAPI-SUPPLEMENT.md`
+- Python + Django: Read `{skill_dir}/monkeymode/guides/PYTHON-DJANGO-SUPPLEMENT.md`
+- Terraform + AWS (`cloud_provider: "aws"`): Read `{skill_dir}/monkeymode/guides/TERRAFORM-AWS-SUPPLEMENT.md`
+- Terraform + GCP (`cloud_provider: "gcp"`): Read `{skill_dir}/monkeymode/guides/TERRAFORM-GCP-SUPPLEMENT.md`
+
+If no supplement exists for the detected framework or cloud provider, follow the base guide plus established conventions found in the existing codebase. If `detected_stack` is not yet populated (e.g., resuming an older project), detect the framework from config files and update state.json before loading guides.
+
+**Step 3 — Load the platform supplement (if one exists):**
+
+If a platform was detected (`context.detected_stack.platform` is set), attempt to load `{skill_dir}/monkeymode/guides/<PLATFORM>-PLATFORM-SUPPLEMENT.md` (uppercase platform name). The platform supplement is loaded **after** the cloud-provider supplement because platform rules override cloud-provider defaults where they conflict (egress rules, topic conventions, IAM layering).
+
+`platform` is detected during Phase 1A from any of the following signals:
+
+- A platform supplement present in `{skill_dir}/monkeymode/guides/` (`*-PLATFORM-SUPPLEMENT.md`, created from `_PLATFORM-SUPPLEMENT-TEMPLATE.md`) whose "Detection signals" match the workspace
+- A top-level `PLATFORM.md` file declaring the platform
+- A `platform:` key in a top-level `monkeymode.config.yaml`
+- Explicit user assertion during discovery
+
+Unknown or undetected platforms set `platform = null` AND `platform_supplement_loaded = false`. The agent emits an informational message (no warning — `null` is the steady state for non-platform projects).
+
+**Loading outcomes:**
+
+- **On success** (file exists and is readable): set `context.detected_stack.platform_supplement_loaded = true` and append the resolved supplement path to the supplements list passed to subagents and phases.
+- **On missing-file or unreadable failure (degrade-with-warning policy):** **do not fail the run.** Leave `platform_supplement_loaded = false`. Append a warning of the form `"Platform 'X' detected but supplement file 'guides/X-PLATFORM-SUPPLEMENT.md' is missing; proceeding with base + framework + cloud-provider supplements only. Platform-specific invariants are NOT enforced for this run."` to `context.detected_stack.platform_supplement_warnings`. Print the same warning to the run log immediately at `WARN` level (not `INFO`). The orchestrator MUST re-surface this warning at every phase boundary until the array is cleared (i.e., until the supplement file is added and the next run resets state).
+- **Operational meaning of the degraded case:** for the rest of the run, the loader treats `(platform != null AND platform_supplement_loaded == false)` as functionally equivalent to `platform == null` for *rule application* purposes, but the warning is preserved so the gap is never invisible.
+
+**Precedence (record explicitly to prevent accidental shadowing):**
+
+1. Platform supplement (highest precedence for architectural / integration rules)
+2. Cloud-provider supplement
+3. Framework supplement
+4. Base language guide (lowest)
+
+If the platform supplement contradicts the cloud-provider supplement, **the platform supplement wins.** If the platform supplement contradicts the base guide, the platform supplement wins for architectural / integration rules; the base guide wins for language-level coding conventions.
+
+See [Platform Supplement Degradation Policy](#platform-supplement-degradation-policy) for the complete normative reference.
+
+Additionally, `{skill_dir}/monkeymode/guides/IMPLEMENTATION-PATTERNS.md` contains language-agnostic reference examples for testing, error handling, logging, and common architecture patterns. Subagents reference this file during Phase 4.
+
+When implementing code, follow the loaded guidelines for all code style, architecture, testing, and quality decisions. If no guideline exists for the project's language, follow established conventions found in the existing codebase.
 
 ## Resuming Work
 
@@ -389,21 +509,27 @@ Agent: "Found existing MonkeyMode projects in this workspace:
 9. **Update state:** Write updated `{workspace}/.monkeymode/{feature-name}/state.json`
 10. **Ask for confirmation:** Before advancing to next phase
 
-### Phase Flow (Phases 4 → 5 → 6)
+### Phase Flow (Phases 2B → 3 → 4 → 5 → 6 → 7)
 
-The orchestrator spawns parallel subagents for implementation, verification, and integration.
+The orchestrator spawns subagents for code specs, implementation, verification, and integration.
 
 **Each phase transition requires explicit user confirmation:**
+- After Phase 2 completes → Stop and ask before starting Phase 2B
+- After Phase 2B completes → Stop and ask before starting Phase 3
+- After Phase 3 completes → Stop and ask before starting Phase 4
 - After Phase 4 completes → Stop and ask before starting Phase 5
 - After Phase 5 completes → Stop and ask before starting Phase 6
+- After Phase 6 completes → Stop and ask before starting Phase 7
 - Parallel subagent execution is scoped *within* a phase — transitions *between* phases always require user approval.
 
 **Pipeline:**
 ```
-Phase 2B: Acceptance Checklist  →  agent drafts checklist (curl, CLI, UI steps); user approves
+Phase 2: User Stories     →  orchestrator drafts stories/user_stories.md (security criteria, shared-file conflict analysis, integration story)
+       ↓ (ask user to proceed)
+Phase 2B: Acceptance Checklist  →  agent drafts checklist (curl, CLI, UI steps, security scenarios); user approves
        ↓ (ask user to proceed)
 Phase 3: Code Spec
-  Step 1 →  code-spec-writer subagents (parallel, all stories at once, max 10) — each WRITES spec to code_specs/
+  Step 1 →  code-spec-writer subagents (parallel, all stories incl. integration story, max 10) — each WRITES spec to code_specs/ (with SEC-* security sections)
             ↓ orchestrator verifies every spec file exists on disk (retry missing files)
   Step 2 →  orchestrator resolves open questions with user, presents each spec for approval
             ↓ on approval, updates state.json (path + files_to_create/modify)
@@ -412,16 +538,18 @@ Phase 4: Implementation
   Step 1 →  test-writer subagents (parallel, per batch) — writes red tests from code spec
             ↓ confirm all tests red
   Step 2 →  implementer subagents (parallel, per batch) — makes tests pass; logs any test corrections
+            ↓ per-batch security checks (secret scan, SCA, SAST if configured)
        ↓ (ask user to proceed)
 Phase 5: Verification     →  verifier subagents (parallel, read-only)
-            ↓                      ↓ includes test correction audit
+            ↓                      ↓ includes test correction audit + security baseline
             ↓ fail                 ↓ pass
          reworker         →  re-verify (loop, max 3 attempts)
        ↓ (ask user to proceed)
-Phase 6: Integration      →  orchestrator merges shared files, writes e2e tests
+Phase 6: Integration      →  integration story: code spec → implementer (shared files, wiring, e2e tests)
+            ↓                      ↓ then post-integration verifier (whole feature)
        ↓ (ask user to proceed)
-Phase 7: Acceptance       →  agent runs automatable checks; human confirms UI items
-            ↓ all pass            ↓ failures found
+Phase 7: Acceptance       →  agent runs automatable checks; human confirms UI items; security/QA gate
+            ↓ all pass + clearance ↓ failures found
          completed          →  rework loop → re-run failed checks
 ```
 
@@ -436,7 +564,7 @@ Phase 3 runs as a **two-step pipeline across all stories**:
 Key responsibilities:
 
 1. **Collect all stories** — Read `state.json` and identify all stories that need code specs (status `not_started` or `code_spec` incomplete). This is typically all stories from Phase 2.
-2. **Build subagent prompts** — For each story, assemble a self-contained prompt containing: full user story text, acceptance criteria, design doc excerpts, the exact output file path to write, codebase references to investigate, language guidelines path, and any conventions already known from Phase 1.
+2. **Build subagent prompts** — For each story, assemble a self-contained prompt containing: full user story text, acceptance criteria, design doc excerpts, the exact output file path to write, codebase references to investigate, language guidelines path, and any conventions already known from Phase 1, the `detected_stack`, and the guide paths (base + framework/cloud/platform supplements). Each spec MUST include the `Security Implementation` and `Security Test Cases` (SEC-*) sections.
 3. **Step 1 — Spawn code-spec-writer subagents** — Launch one `code-spec-writer` subagent per story (`subagent_type: "code-spec-writer"`). Each subagent writes its spec file directly to the path provided in the prompt. **Launch all subagents in a single message (parallel tool calls). Max 10 concurrent subagents.** If there are more than 10 stories, batch them (10 per batch), completing each batch before spawning the next.
 3b. **Verify disk writes** — Glob `code_specs/*-spec.md`; for any missing file, resume that subagent until the file exists (see `phases/03-code-spec.md` Step O3b).
 4. **Step 2 — Review written specs** — For each subagent result, read the **Structured Output JSON** returned directly: `files_written`, `spec_ready`, `summary`, `files_to_create`, `files_to_modify`, `open_questions`
@@ -467,7 +595,8 @@ Key responsibilities:
 ## Output File
 
 Write the completed spec to this exact path:
-{workspace}/.monkeymode/{feature-name}/code_specs/{story-id}-spec.md
+{workspace}/.monkeymode/{feature-name}/code_specs/story-N-spec.md
+(`N` = the story number; the integration story uses `story-N-integration-spec.md`)
 
 ## Files to Read on Startup
 
@@ -479,8 +608,10 @@ Read ALL of these before writing the spec:
 - {workspace}/.monkeymode/{feature-name}/design/1c-operations.md
 - {workspace}/.monkeymode/{feature-name}/stories/user_stories.md
 
-**Language-specific coding guidelines:**
+**Coding guidelines (from `context.detected_stack`; precedence platform > cloud > framework > base):**
 - {skill_dir}/monkeymode/guides/{LANGUAGE}-CODING-GUIDELINES.md
+- {skill_dir}/monkeymode/guides/{FRAMEWORK-OR-CLOUD}-SUPPLEMENT.md (if one exists for the detected stack)
+- {skill_dir}/monkeymode/guides/{PLATFORM}-PLATFORM-SUPPLEMENT.md (only if `platform_supplement_loaded == true`)
 
 ## Codebase References (Read These to Discover Existing Patterns)
 
@@ -505,7 +636,7 @@ Read ALL of these before writing the spec:
 
 **After Phase 3 completes:**
 - Every story must have `status: "code_spec"` and a populated `code_spec_path` in `state.json`
-- Every story must have `files_to_create` and `files_to_modify` lists populated (required for Phase 4 conflict detection)
+- Every story (including the integration story, if one exists) must have `files_to_create` and `files_to_modify` lists populated (required for Phase 4 conflict detection)
 
 ---
 
@@ -517,15 +648,16 @@ Phase 4 runs as a **two-step pipeline per batch**: test-writer subagents first, 
 
 Key responsibilities:
 
-1. **Analyze stories** — Identify which stories have completed code specs and are ready for implementation
+1. **Analyze stories** — Identify which stories have completed code specs and are ready for implementation. The integration story (`type: "integration"`) is excluded from Phase 4 batches; it runs in Phase 6
 2. **Detect file conflicts** — Check `files_to_create` and `files_to_modify` across stories; stories that share files CANNOT run in the same batch
 3. **Batch stories** — Group up to 10 conflict-free stories per batch
 4. **Step 1 — Spawn test-writer subagents** — Launch one `test-writer` subagent per story (`subagent_type: "test-writer"`). **Do NOT pass a `model` parameter.**
+4b. **Security self-check** — Implementers and test-writers follow the code spec's SEC-* sections; authorization is enforced before business logic in every protected path
 5. **Confirm red state** — After test-writers complete, verify all new tests fail. Do not proceed until confirmed. Update state to `tests_written` per story.
-6. **Step 2 — Spawn implementer subagents** — Launch one `implementer` subagent per story (`subagent_type: "implementer"`). Include the list of test files already written in the prompt. **Do NOT pass a `model` parameter.** Never use `model: "fast"`.
+6. **Step 2 — Spawn implementer subagents** — Launch one `implementer` subagent per story (`subagent_type: "implementer"`). Include the list of test files already written in the prompt. **Do NOT pass a `model` parameter.** Do not select a fast/cheap model for implementation, even if your tool supports selecting one; otherwise omit the model entirely.
 7. **Collect test corrections** — After implementers complete, aggregate any Option B escape hatch corrections from their reports into `state.json` under `verification.test_corrections` per story
 8. **Own state.json** — Only the orchestrator writes to `state.json`; subagents do NOT touch it
-9. **Reconcile results** — After each batch completes, run full test suite, update state
+9. **Reconcile results** — After each batch completes, run full test suite **and the per-batch security checks** (secret scan blocks on any finding; SCA blocks on critical/high per the 1C threshold; SAST/IaC scan per the CI config detected in 1A), update state
 10. **Handle failures** — If a subagent fails, mark the story as `failed`, log the error, and continue with remaining stories
 11. **Report to user** — Summarize both passes (test-writer and implementer) and any test corrections before launching the next batch
 
@@ -537,7 +669,7 @@ Key responsibilities:
 
 Key responsibilities:
 
-1. **Spawn verifiers** — Launch one `verifier` subagent per implemented story (`subagent_type: "verifier"`, parallel, read-only)
+1. **Spawn verifiers** — Launch one `verifier` subagent per implemented story (`subagent_type: "verifier"`, parallel, read-only). Verifiers apply the security verification baseline: all 1C controls implemented, authorization-matrix rows have passing tests, SEC-* cases PASS
 2. **Triage results** — For each story:
    - If verifier reports `pass` → Story moves to Phase 6 (integration), update state: `status: verified`, `verification.result: pass`
    - If verifier reports `pass-with-warnings` → Present warnings to user. If user proceeds: update state `status: verified`, `verification.result: pass-with-warnings`. If user wants fixes: enter rework loop, update state `status: verification_failed`, `verification.result: pass-with-warnings`
@@ -559,15 +691,16 @@ Key responsibilities:
 
 ### Phase 6 Orchestrator Responsibilities
 
-**FIRST read `phases/06-integration.md`** for the full workflow before executing this phase. The phase guide contains the shared file merge strategy, cross-story wiring steps, and integration test patterns.
+**FIRST read `phases/06-integration.md`** for the full workflow before executing this phase. The phase guide contains the integration story implementation process, shared file merge strategy, cross-story wiring steps, and integration test patterns.
 
 Key responsibilities:
 
-1. **Identify integration points** — Shared files, cross-story imports, DI wiring, config entries
-2. **Merge shared files** — Apply changes from all stories to shared files in order
-3. **Write integration tests** — End-to-end tests across story boundaries
-4. **Run full verification** — All tests pass, linter clean, no regressions
-5. **Report to user** — Summarize integration results, advance to Phase 7
+1. **Load the integration story's code spec** — The integration story (created in Phase 2, code spec in Phase 3) is the single source of truth for Phase 6 work
+2. **Verify all component stories are verified** — All non-integration stories must have `status: verified` before proceeding
+3. **Implement the integration story** — Spawn an `implementer` subagent with the integration story's code spec (or implement directly for simple integrations; write its tests first, as in Phase 4)
+4. **Run tests & lint** — All tests pass, linter clean, no regressions
+5. **Post-integration verification** — Spawn a `verifier` subagent to verify the integrated feature as a whole (cross-story contracts, DI wiring, shared file integrity, e2e flow). This catches issues that per-story verification in Phase 5 cannot.
+6. **Report to user** — Summarize integration results, ask user to proceed to Phase 7 (Acceptance)
 
 ### Phase 7 Orchestrator Responsibilities
 
@@ -580,7 +713,8 @@ Key responsibilities:
 3. **Report automated results** — If any fail, offer to investigate before proceeding to manual checks
 4. **Present human checks** — Walk through `human-ui` and `human-verify` items one by one; for `human-verify` items, run the agent-side setup first
 5. **Triage failures** — Classify as implementation bug, design gap, or environment issue; load `phases/rework.md` for bugs and gaps
-6. **Mark complete** — Update state to `completed` only after all items pass (or user accepts known issues)
+6. **Security/QA gate** — Treat security scenario failures as blocking unless the user accepts documented risk. Before completion, run your project's security/QA gate (scanners, dependency audit, policy checks) and produce `deployment-clearance.md` (or an equivalent clearance artifact); do not mark `completed` if it reports BLOCKED unless the user accepts documented risk
+7. **Mark complete** — Update state to `completed` only after all items pass and clearance is obtained (or user accepts known issues)
 
 ### Never Do
 
@@ -600,12 +734,18 @@ Key responsibilities:
 - ❌ Verify stories without spawning `verifier` subagents — the orchestrator must always delegate verification
 - ❌ Run stories with shared files in the same parallel batch
 - ❌ Launch more than 10 subagents concurrently
+- ❌ Treat a platform supplement as loaded when `platform_supplement_loaded` is false — never key platform behaviour on `platform != null` alone
+- ❌ Read or apply `design-context.md` as authoritative for any axis listed in its `degradation_notes`
 
 ### Always Do
 
 - ✅ Extract feature name first
 - ✅ Spike (verify empirically) any load-bearing assumption about library/API/runtime behavior instead of guessing or shipping it as a caveat; record the evidence and retire stale assumptions
 - ✅ Read state from `.monkeymode/{feature-name}/state.json`
+- ✅ In Phase 1A Step 0.5: If `.design-context/{feature-name}/design-context.md` exists, parse its fenced JSON block and pre-seed `detected_stack` + `architectural_guidance`; surface degradation notes verbatim; never block when it is absent (read-if-present)
+- ✅ In Phase 1A: Detect framework from config files and write `detected_stack` (including `cloud_provider` for IaC and `platform` for platform-aware projects) to state.json
+- ✅ When a platform is detected but its supplement file is missing, append a warning to `platform_supplement_warnings`, log at `WARN`, and re-surface the warnings at every phase boundary — never silently proceed
+- ✅ In Phase 2: Run shared file conflict analysis, resolve conflicts, and generate an integration story for features with 2+ stories
 - ✅ Save all artifacts to workspace
 - ✅ Update state after significant actions
 - ✅ Log all Q&A exchanges to `qa-log.md` immediately (if enabled)
@@ -620,24 +760,87 @@ Key responsibilities:
 - ✅ In Phase 3: Verify every spec file exists on disk before presenting for approval (resume subagent if missing)
 - ✅ In Phase 3: Present each spec using the subagent's `summary`; Read the file if the user asks for detail or requests changes
 - ✅ In Phase 3: Populate `files_to_create` and `files_to_modify` in `state.json` for every story before Phase 4
-- ✅ In Phase 4: Load language-specific coding guidelines from `guides/` before writing any code
+- ✅ In Phase 4: Load base language guide + framework/cloud-provider supplement + platform supplement (when `platform_supplement_loaded == true`) from `{skill_dir}/monkeymode/guides/` before writing any code
 - ✅ In Phase 4: Check for file conflicts before batching stories for parallel execution
 - ✅ In Phase 4: Run full test suite after each batch completes
 - ✅ In Phase 4: Report batch results to user before proceeding to next batch
+- ✅ In Phase 4: Run per-batch security checks (secret scan, SCA, SAST if configured, IaC scan for infra stories)
 - ✅ In Phase 5: Verify every story against its code spec before integration
 - ✅ In Phase 5: Use `reworker` subagents for implementation fixes, escalate spec issues to `phases/rework.md`
-- ✅ In Phase 6: Merge shared files, wire cross-story dependencies, write integration tests
+- ✅ In Phase 6: Implement the integration story from its code spec — merge shared files, wire dependencies, write integration tests
+- ✅ In Phase 6: Run post-integration verification via `verifier` to catch cross-story issues
 - ✅ In Phase 7: Run all `agent-automatable` checks before presenting human checks
 - ✅ In Phase 7: Classify failures (implementation bug vs design gap vs environment) before reworking
+- ✅ In Phase 7: Treat security scenario failures as blocking unless the user accepts documented risk
+- ✅ In Phase 7: Run the security/QA gate before marking `completed` (produce `deployment-clearance.md` or equivalent)
 - ✅ In Phase 7: Mark feature `completed` only after every acceptance item is confirmed
+- ✅ Across phases: Apply [Security Capability](#security-capability) — trace security issues to origin phase via `phases/rework.md`
+
+## Security Capability
+
+Security is embedded in every MonkeyMode phase — not delegated to a separate skill. Phase guides contain the detailed steps; this section is the single normative reference for cross-cutting security behaviour.
+
+### Phase-by-Phase Security Deliverables
+
+| Phase | Security artifacts & gates |
+|-------|---------------------------|
+| **1A** | Security Context discovery (data classification, trust boundaries, abuse scenarios, compliance standards); inventory CI/CD security tooling (SAST, SCA, secret scan, IaC scan); Security Posture dimension in architecture rubric |
+| **1B** | Security contract patterns; Authorization Matrix for every mutating/list endpoint; security testing strategy (authz, auth boundaries, input validation, rate limits, headers) |
+| **1C** | Security Design (authn/authz, input validation, data protection, headers, secrets); Threat Model Summary; OWASP ASVS mapping; supply chain policy; security monitoring; Security Sign-Off Criteria; CI security gates in deployment pipeline |
+| **2** | Security acceptance criteria on every story handling input, auth, external calls, or sensitive data |
+| **2B** | Category 4 — Security Scenarios in `stories/2b-acceptance.md` (401/403, input abuse, rate limits, headers, no sensitive data in errors/logs) |
+| **3** | Required `Security Implementation` + `Security Test Cases` (SEC-*) sections in every code spec |
+| **4** | Per-batch security checks (secret scan, SCA, SAST if configured, IaC scan for infra stories); security self-check per story before feature logic |
+| **5** | Security Verification Baseline — all 1C controls implemented, auth matrix rows have passing tests, SEC-* cases PASS |
+| **6** | Security at integration seams — auth context propagation, no auth bypass at story boundaries, IDOR tests across integrated flow |
+| **7** | Security scenarios blocking in acceptance; run security/QA gate before `completed` |
+| **Rework** | Types: `security-vulnerability`, `security-dependency`, `security-design-gap`; cascade from 1C through 1B → 2 → 2B → 3 → 4+ |
+
+### Security Invariants
+
+1. **Design before code.** Threat model, auth matrix, and security contract patterns MUST exist in design artifacts before code specs are written.
+2. **SEC-* tests are blocking.** Security test cases in code specs are mandatory — implement and pass them before a story is verified.
+3. **Authz before business logic.** Implementers enforce authorization checks before feature logic in every protected path.
+4. **No secrets in output.** Logs, error responses, and acceptance artifacts MUST NOT contain secrets, tokens, or unredacted PII.
+5. **Scan gates block on threshold.** Secret scan blocks on any finding; SCA blocks on critical/high per 1C threshold; SAST/IaC scan thresholds follow project CI config detected in 1A.
+6. **Security scenarios block completion.** Phase 7 security checklist failures block `completed` unless the user explicitly accepts documented risk.
+7. **Trace to origin.** Security failures follow `phases/rework.md` — fix at the phase where the control was missed, then cascade forward.
+
+### Security / QA Gate Handoff (Phase 7)
+
+Before marking a feature `completed`, run the project's own security/QA gate (whatever scanners, dependency audit, and policy checks it uses) to produce `deployment-clearance.md` (or an equivalent clearance artifact). MonkeyMode acceptance confirms functional behaviour; the security/QA gate confirms scanning, dependency audit, and policy compliance. Do not mark `completed` if the gate reports BLOCKED status unless the user accepts documented risk.
+
+## Platform Supplement Degradation Policy
+
+This is the single normative statement of the degrade-with-warning behaviour that the platform-supplement loader (Step 3) implements. Anywhere downstream subagents, phase guides, or quality-gate checks need to reason about "what happens when the platform field is set but the supplement file is missing," they reference this section.
+
+**Three observable states, distinguished by two state fields:**
+
+| `platform` | `platform_supplement_loaded` | Meaning | Loader action | Phase / subagent / quality-gate behaviour |
+|---|---|---|---|---|
+| `null` | `false` | Non-platform project (steady state for most projects). | No supplement attempted. No warning. | Platform-specific paths are inert. |
+| `"X"` | `true` | Platform detected AND `X-PLATFORM-SUPPLEMENT.md` loaded. | Supplement read, path passed to subagents and phases. | Platform-specific rules and questions apply normally. |
+| `"X"` | `false` | Platform detected BUT supplement file missing or unreadable. | `WARN` logged once on detection; warning string appended to `platform_supplement_warnings`. **Run continues.** | All platform-specific paths skipped (rules not applied, questions not pre-pended, platform quality-gate checks not run); warnings re-surfaced at every phase boundary in phase output. |
+
+**Invariants:**
+
+1. The loader NEVER fails the run because a platform supplement is missing. The user can still produce a non-platform-aware design and ship it; the agent simply makes the gap loud.
+2. Subagents, phases, and quality-gate checks NEVER key on `platform != null` alone for platform-specific behaviour. The required gate is `platform_supplement_loaded == true`. Code review on any MonkeyMode change that introduces a platform check should reject `platform != null` keys.
+3. The warning is preserved in state, not just logged. A phase rerun several days later (or a subagent invocation deep in the run) still sees the warning and can re-surface it.
+4. The warning is cleared automatically when the supplement file becomes available on a subsequent run — the loader either appends a new warning (still missing) or sets `platform_supplement_loaded = true` and writes an empty warnings array (now present).
+
+**What this policy is NOT:**
+
+- It is **not** a bypass for platform-specific designs. If a project genuinely needs platform-aware enforcement, the supplement MUST land before the design is treated as production-ready. The policy exists so the platform-supplement tier can be adopted incrementally — adding a new platform supplement never requires a coordinated multi-PR cutover.
+- It is **not** a substitute for documenting the supplement requirement in the project's onboarding / README. Projects targeting a known platform should land the supplement (see `guides/_PLATFORM-SUPPLEMENT-TEMPLATE.md`) as part of their MonkeyMode adoption checklist; the warning is a safety net, not the primary signal.
 
 ## Quality Standards
 
 Every phase output must meet quality standards defined in phase guides:
-- **Design:** Top 1% quality - performance, scalability, security
-- **User Stories:** Zero dependencies in Sprint 1, fully parallelizable
-- **Code Spec:** Atomic tasks, complete signatures, test specifications — written to disk by `code-spec-writer` subagents, approved by user before state.json is updated
-- **Implementation:** Production-ready, tested, follows existing patterns, no cross-story file conflicts
-- **Verification:** Every acceptance criterion confirmed, signatures match spec, full test coverage
-- **Integration:** Shared files merged cleanly, cross-story contracts verified, e2e tests passing
-- **Acceptance:** All automatable checks pass, all human checks confirmed, feature marked completed
+- **Design:** Top 1% quality - performance, scalability, security (threat model, auth matrix, OWASP ASVS mapping, CI security gates)
+- **User Stories:** Zero dependencies in Sprint 1, fully parallelizable; security acceptance criteria on every applicable story
+- **Code Spec:** Atomic tasks, complete signatures, test specifications, SEC-* security test cases — written to disk by `code-spec-writer` subagents, approved by user before state.json is updated
+- **Implementation:** Production-ready, tested, follows existing patterns, no cross-story file conflicts; security checks pass per batch
+- **Verification:** Every acceptance criterion confirmed, signatures match spec, full test coverage; security verification baseline PASS
+- **Integration:** Shared files merged cleanly, cross-story contracts verified, e2e tests passing, post-integration verification passed; auth context propagated, no auth bypass at seams
+- **Acceptance:** All automatable checks pass, all human checks confirmed, security scenarios blocking, security/QA gate clearance obtained, feature marked completed

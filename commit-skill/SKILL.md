@@ -32,6 +32,9 @@ This skill provides an opt-in git workflow that complements MonkeyMode. It reads
    - `feature_name` — used for branch naming
    - `current_phase` — determines commit message prefix
    - `stories` — identifies which stories have been implemented
+   - `context.workflow_tier` — `lite` (`@monkeymode-lite`) or `full`/missing (`@monkeymode`); selects the commit table in Step 3
+   - `context.architectural_guidance` — if the `@design-context` bus was pre-seeded, the contract delta and integration style are already in state
+2b. **Check for the `@design-context` bus (read-if-present):** look for `{workspace}/.design-context/{feature-name}/design-context.md`. If present, parse its single fenced ` ```json ` block (per `design-context/guides/consuming-design-context.md`) and use `semantic_axis.contract_delta` + `semantic_axis.affected_components` to enrich the PR description — list the contracts changed (flagging breaking ones) and the capability/component map. If absent or unparseable, skip this enrichment; never block.
 3. **Run `git status`** to see what's changed
 4. **Run `git diff --stat`** to understand the scope of changes
 5. **If nothing to commit**, tell the user and stop
@@ -74,8 +77,20 @@ Analyze the changed files against MonkeyMode state to create meaningful commits.
  
 #### Commit Strategy
  
-**Phase-aware commits** — Group changes based on what MonkeyMode phase produced them:
- 
+**Phase-aware commits** — Group changes based on what MonkeyMode phase produced them. Read `state.json.context.workflow_tier` first to determine which table applies.
+
+**MonkeyMode Lite commits (`workflow_tier: lite`):**
+
+| Changed files match | Commit message format | Example |
+|---|---|---|
+| `.monkeymode/**/design.md` | `docs({feature}): complete lite design` | `docs(export-btn): complete lite design` |
+| `.monkeymode/**/code-spec.md` | `docs({feature}): create code spec` | `docs(export-btn): create code spec` |
+| Source files matching `files_to_create`/`files_to_modify` | `feat({feature}): implement {story-title}` | `feat(export-btn): implement export button` |
+| Test files only | `test({feature}): add tests for {story-title}` | `test(export-btn): add export button tests` |
+| Unrecognized files (no story match) | `chore({feature}): update {brief description}` | `chore(export-btn): update dependencies` |
+
+**MonkeyMode commits (`workflow_tier: full` or missing `workflow_tier`):**
+
 | Changed files match | Commit message format | Example |
 |---|---|---|
 | `.monkeymode/**/design/**` | `docs({feature}): complete phase 1 design` | `docs(user-auth): complete phase 1 design` |
@@ -144,7 +159,7 @@ When creating a PR:
 ```markdown
 ## Summary
  
-{Read .monkeymode/{feature}/design/1a-discovery.md "Problem Statement" section for a 1-2 sentence summary}
+{Full: read .monkeymode/{feature}/design/1a-discovery.md "Problem Statement" section. Lite (`workflow_tier: lite`): read the "Problem" section of .monkeymode/{feature}/design.md. Summarise in 1-2 sentences.}
  
 ## Changes
  
@@ -157,10 +172,10 @@ When creating a PR:
  
 ## MonkeyMode Artifacts
  
-- Design: `.monkeymode/{feature}/design/`
-- User Stories: `.monkeymode/{feature}/stories/user_stories.md`
-- Acceptance Checklist: `.monkeymode/{feature}/stories/2b-acceptance.md`
-- Code Specs: `.monkeymode/{feature}/code_specs/`
+- Design: `.monkeymode/{feature}/design/` (Lite: `.monkeymode/{feature}/design.md`)
+- User Stories: `.monkeymode/{feature}/stories/user_stories.md` (Full only)
+- Acceptance Checklist: `.monkeymode/{feature}/stories/2b-acceptance.md` (Full only)
+- Code Specs: `.monkeymode/{feature}/code_specs/` (Lite: `.monkeymode/{feature}/code-spec.md`)
 ```
  
 4. Create PR using `gh pr create`
@@ -296,3 +311,4 @@ Agent: "Reading MonkeyMode state for 'user-auth' (Phase 1: Design).
         - .monkeymode/user-auth/design/1c-operations.md
  
         Proceed?"
+```

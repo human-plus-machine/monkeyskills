@@ -26,7 +26,7 @@ const REPO_ROOT = __dirname;
 const HOME      = os.homedir();
 
 const ALL_TARGETS = [
-  { id: 'claude', label: 'Claude Code', skillsDir: path.join(HOME, '.claude', 'skills'), subagentsDir: path.join(HOME, '.claude', 'subagents') },
+  { id: 'claude', label: 'Claude Code', skillsDir: path.join(HOME, '.claude', 'skills'), subagentsDir: path.join(HOME, '.claude', 'agents') },
   // Cursor Settings / Task tool read user subagents from ~/.cursor/agents (not …/subagents).
   { id: 'cursor', label: 'Cursor', skillsDir: path.join(HOME, '.cursor', 'skills'), subagentsDir: path.join(HOME, '.cursor', 'agents') },
 ];

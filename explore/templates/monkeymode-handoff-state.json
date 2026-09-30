@@ -1,0 +1,80 @@
+{
+  "feature_name": "{feature-name}",
+  "current_phase": "2",
+  "phase_status": {
+    "design_1a": "completed",
+    "design_1b": "completed",
+    "design_1c": "completed",
+    "user_stories": "not_started",
+    "acceptance_checklist": "not_started",
+    "code_spec": "not_started",
+    "implementation": "not_started",
+    "verification": "not_started",
+    "integration": "not_started",
+    "acceptance": "not_started"
+  },
+  "artifacts": {
+    "design_docs": {
+      "1a_discovery": ".monkeymode/{feature-name}/design/1a-discovery.md",
+      "1b_contracts": ".monkeymode/{feature-name}/design/1b-contracts.md",
+      "1c_operations": ".monkeymode/{feature-name}/design/1c-operations.md"
+    },
+    "user_stories_doc": ".monkeymode/{feature-name}/stories/user_stories.md",
+    "acceptance_checklist": ".monkeymode/{feature-name}/stories/2b-acceptance.md",
+    "qa_log": ".monkeymode/{feature-name}/qa-log.md"
+  },
+  "stories": {},
+  "parallel_execution": {
+    "enabled": false,
+    "max_concurrent": 10,
+    "batches": [],
+    "current_batch": null
+  },
+  "rework_history": [],
+  "integration": {
+    "status": "not_started",
+    "shared_files_merged": [],
+    "integration_tests_added": 0,
+    "post_integration_verification": "pending",
+    "completed_at": null
+  },
+  "acceptance": {
+    "status": "not_started",
+    "automated_passed": 0,
+    "automated_failed": 0,
+    "human_passed": 0,
+    "human_failed": 0,
+    "known_issues": [],
+    "completed_at": null
+  },
+  "context": {
+    "workflow_tier": "full",
+    "save_qa_log": true,
+    "explore_handoff": true,
+    "explore_path": ".explore/{feature-name}/",
+    "detected_stack": {
+      "language": null,
+      "framework": null,
+      "framework_version": null,
+      "build_tool": null,
+      "test_framework": null,
+      "cloud_provider": null,
+      "platform": null,
+      "platform_version": null,
+      "platform_supplement_loaded": false,
+      "platform_supplement_warnings": []
+    },
+    "infra_required": null,
+    "architectural_guidance": {
+      "source": null,
+      "clouds": [],
+      "domains": [],
+      "pillar_profile": [],
+      "framework_checks": [],
+      "contract_delta": [],
+      "integration_style": null,
+      "degradation_notes": []
+    }
+  },
+  "last_updated": "{ISO8601 timestamp}"
+}

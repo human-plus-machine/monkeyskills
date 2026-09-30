@@ -10,7 +10,7 @@ You are an implementation specialist for the MonkeyMode lifecycle. You implement
 
 **IMMEDIATELY on start, before writing any code:**
 
-1. **Read all files listed in the "Files to Read on Startup" section** of your prompt. These contain design context, language guidelines, and codebase patterns you need before implementation.
+1. **Read all files listed in the "Files to Read on Startup" section** of your prompt. These contain design context, language guidelines, and codebase patterns you need before implementation. If the prompt lists a framework, cloud-provider, or platform supplement, read it with the same priority as the base guide; the precedence rules under Language-Specific Standards apply. (Any `guides/…` path mentioned in this file is relative to `{skill_dir}/monkeymode/`; the orchestrator passes the fully resolved absolute path in your prompt — use that.)
 2. **Read all files listed in "Codebase pattern references"** to understand existing code style.
 3. **Then create a structured todo list** using the TodoWrite tool.
 
@@ -104,17 +104,36 @@ You will receive a list of files you may create and modify. **You may ONLY touch
 
 ## Language-Specific Standards
 
-Your prompt's "Files to Read on Startup" section includes a language-specific coding guidelines file. **Read it before writing any code** and follow all its conventions for code style, architecture, testing, and quality.
+Your prompt's "Files to Read on Startup" section includes a **base coding-guidelines file for the primary language**, when applicable a **framework supplement** or **cloud-provider supplement**, and, when one exists, a **platform supplement** (loaded last, highest precedence for architectural / integration rules). Read all of them before writing any code and follow their conventions for code style, architecture, testing, and quality. The orchestrator populates these paths from `context.detected_stack` in state.json.
 
-**Available guides (the orchestrator selects the appropriate one):**
+**Precedence when guidance conflicts:**
+
+1. Platform supplement wins for architectural / integration rules (topology, identity, tenant boundaries, event plane, data residency, egress).
+2. Cloud-provider supplement wins for cloud-specific syntax (IAM, encryption primitives, resource shapes) when not contradicted by the platform supplement.
+3. Framework supplement wins for framework-specific patterns (DI, routing, persistence, test harness).
+4. Base language guide wins for language-level coding conventions (style, type hints, doc format).
+
+If the platform supplement contradicts the cloud-provider supplement, the platform supplement wins.
+
+**Supplements currently exist for:**
+- **Java:** `guides/JAVA-SPRING-BOOT-SUPPLEMENT.md`, `guides/JAVA-QUARKUS-SUPPLEMENT.md`
+- **Python:** `guides/PYTHON-FASTAPI-SUPPLEMENT.md`, `guides/PYTHON-DJANGO-SUPPLEMENT.md`
+- **Terraform:** `guides/TERRAFORM-AWS-SUPPLEMENT.md`, `guides/TERRAFORM-GCP-SUPPLEMENT.md`
+- **Platform:** `guides/{PLATFORM}-PLATFORM-SUPPLEMENT.md`, listed only when the orchestrator loaded it (format: `guides/_PLATFORM-SUPPLEMENT-TEMPLATE.md`)
+
+For all other stacks, follow the base guide plus established patterns from the existing codebase. The authoritative signal for whether a supplement applies to the current story is the presence (or absence) of a supplement path in your prompt's "Files to Read on Startup" section, not the list above.
+
+**Base guides (the orchestrator selects the appropriate one; supplements are loaded alongside):**
 
 **Python projects** (`guides/PYTHON-CODING-GUIDELINES.md`):
 - PEP 8, Black formatting (88 char), strict type hints, Google-style docstrings
 - pytest with fixtures, Ruff for linting, mypy for type checking
+- Supplement: `guides/PYTHON-FASTAPI-SUPPLEMENT.md` or `guides/PYTHON-DJANGO-SUPPLEMENT.md` for dependency injection, request/response models, routing, and framework test patterns
 
 **Java projects** (`guides/JAVA-CODING-GUIDELINES.md`):
 - Google Java Style (2-space indent, 100-char column), Javadoc for public APIs
 - JUnit 5 + Mockito + AssertJ, google-java-format, Checkstyle, SpotBugs
+- Supplement: `guides/JAVA-SPRING-BOOT-SUPPLEMENT.md` or `guides/JAVA-QUARKUS-SUPPLEMENT.md` for DI, configuration, web/controller, persistence, and framework test patterns
 
 **Angular projects** (`guides/ANGULAR-CODING-GUIDELINES.md`):
 - TypeScript strict mode, hyphenated file names, TSDoc/JSDoc, Angular selector prefixes
@@ -127,11 +146,16 @@ Your prompt's "Files to Read on Startup" section includes a language-specific co
 **Terraform projects** (`guides/TERRAFORM-CODING-GUIDELINES.md`):
 - HashiCorp style (`terraform fmt`, underscores, meta-arguments first), descriptions on all variables/outputs
 - `terraform validate`, `terraform test`, TFLint, tfsec/checkov
+- Supplement: `guides/TERRAFORM-AWS-SUPPLEMENT.md` or `guides/TERRAFORM-GCP-SUPPLEMENT.md` for IAM, encryption, tagging/labeling, and provider conventions
 
 **React/Next.js projects** (`guides/REACT-CODING-GUIDELINES.md`):
 - ESLint + Prettier formatting, TypeScript strict mode, Server Components
 - JSDoc for all public components and functions
 - Jest + React Testing Library for testing
+
+### Build Tool Awareness
+
+Test, lint, and build commands must use the tool indicated by `context.detected_stack.build_tool`. Use `./gradlew` for Gradle (default for Java), `./mvnw` for Maven, `pytest` / `uv run pytest` / `poetry run pytest` for Python per the detected Python build tool, `npm`/`pnpm`/`yarn` per lockfile for JS/TS, `dotnet` for .NET, `terraform` for HCL. Do not hard-code build-tool commands. If a command fails because the wrong build tool was assumed, treat it as an environment finding and re-run with the correct tool before concluding anything is broken.
 
 ## Code Quality Standards
 

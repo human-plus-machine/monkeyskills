@@ -18,11 +18,11 @@ Phase 1b begins automatically after Phase 1 (Exploration) completes, without req
 ## Step 1: Load Council Responses
 
 Read all available council response files from the workspace:
-- `.monkeythink/{topic-name}/council-responses/claude-exploration.md`
-- `.monkeythink/{topic-name}/council-responses/gpt-exploration.md`
-- `.monkeythink/{topic-name}/council-responses/gemini-exploration.md`
+- `.monkeythink/{feature-name}/council-responses/claude-exploration.md`
+- `.monkeythink/{feature-name}/council-responses/gpt-exploration.md`
+- `.monkeythink/{feature-name}/council-responses/gemini-exploration.md`
 
-Skip any files marked as `COUNCIL MEMBER FAILED`. Note which members are included in the synthesis.
+Skip any files marked as `COUNCIL MEMBER FAILED`. Note which members are included in the synthesis. (In sequential mode the three files are the three persona passes; if only `solo-exploration.md` exists, go to Step 6.)
 
 ---
 
@@ -82,10 +82,10 @@ Contradictions are not problems — they are the most valuable output of the cou
 
 ## Step 4: Produce exploration-synthesis.md
 
-Save the synthesis to `.monkeythink/{topic-name}/exploration-synthesis.md`:
+Save the synthesis to `.monkeythink/{feature-name}/exploration-synthesis.md`:
 
 ```markdown
-# Exploration Synthesis: {topic-name}
+# Exploration Synthesis: {feature-name}
 
 **Created:** {ISO8601 date}
 **Council members:** {list of members that responded, e.g., Claude, GPT, Gemini}
@@ -189,7 +189,7 @@ Present the synthesis in the conversation, then ask:
 **{N} unique insights** — angles that only one LLM surfaced.
 **{N} contradictions** — genuine trade-offs that require your input before we proceed.
 
-The full synthesis is saved at .monkeythink/{topic-name}/exploration-synthesis.md.
+The full synthesis is saved at .monkeythink/{feature-name}/exploration-synthesis.md.
 
 Take a moment to review. When you're ready, we'll move to direction setting — where you'll choose
 1-2 directions to pursue and we'll resolve any contradictions.
@@ -218,7 +218,7 @@ After user confirms they are ready:
    ```json
    {
      "phase_status": { "synthesis_review": "completed" },
-     "current_phase": "2"
+     "current_phase": "2a"
    }
    ```
 2. Read `phases/02a-direction-setting.md` and follow its methodology

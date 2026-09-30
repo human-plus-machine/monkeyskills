@@ -1,8 +1,14 @@
-# Terraform Coding Guidelines - Enterprise Grade
+# Terraform Coding Guidelines - Enterprise Grade (Provider-Agnostic Base)
 
-**Version:** 1.0  
+**Version:** 2.0  
 **Last Updated:** 2026  
 **Target:** Production Terraform infrastructure requiring high quality, security, and maintainability
+
+> **Two-tier guide system:** This base guide covers provider-agnostic Terraform conventions. For cloud-specific patterns (resource examples, IAM, encryption, networking, compute, state backends), load the appropriate supplement:
+> - AWS → `TERRAFORM-AWS-SUPPLEMENT.md`
+> - GCP → `TERRAFORM-GCP-SUPPLEMENT.md`
+>
+> The supplement is selected automatically based on `context.detected_stack.cloud_provider` in state.json.
 
 ---
 
@@ -59,36 +65,28 @@ Follow the **HashiCorp Terraform Style Guide** with `terraform fmt` as the basel
 
 **Naming Conventions:**
 ```hcl
-# Resources - lowercase with underscores, singular nouns
+# Resources — lowercase with underscores, singular nouns
 # Do NOT repeat the resource type in the name
-resource "aws_instance" "web_server" {     # [GOOD]
-  # ...
-}
-resource "aws_instance" "web_server_instance" {  # [BAD] repeats "instance"
-  # ...
-}
+resource "<provider>_<type>" "web_server" {}     # [GOOD]
+resource "<provider>_<type>" "web_server_instance" {}  # [BAD] repeats "instance"
 
-# Single-instance resources - use "main" or "this"
-resource "aws_vpc" "main" {
-  # ...
-}
+# Single-instance resources — use "main" or "this"
+resource "<provider>_network" "main" {}
 
-# Multiple similar resources - use meaningful names
-resource "aws_subnet" "public" { }
-resource "aws_subnet" "private" { }
-resource "aws_route_table" "public" { }
-resource "aws_route_table" "private" { }
+# Multiple similar resources — use meaningful names
+resource "<provider>_subnet" "public" {}
+resource "<provider>_subnet" "private" {}
 
-# Variables - lowercase with underscores
-variable "instance_type" { }
-variable "enable_monitoring" { }   # Boolean: positive name with enable/disable
-variable "ram_size_gb" { }         # Numeric: include unit in name
+# Variables — lowercase with underscores
+variable "instance_type" {}
+variable "enable_monitoring" {}   # Boolean: positive name with enable/disable
+variable "ram_size_gb" {}         # Numeric: include unit in name
 
-# Outputs - lowercase with underscores
-output "instance_id" { }
-output "load_balancer_dns_name" { }
+# Outputs — lowercase with underscores
+output "instance_id" {}
+output "load_balancer_dns_name" {}
 
-# Locals - lowercase with underscores
+# Locals — lowercase with underscores
 locals {
   common_tags = {
     Environment = var.environment
@@ -97,42 +95,41 @@ locals {
   }
 }
 
-# Data sources - lowercase with underscores
-data "aws_ami" "ubuntu" { }
-data "aws_caller_identity" "current" { }
+# Data sources — lowercase with underscores
+data "<provider>_image" "base" {}
 
-# Modules - lowercase with underscores
+# Modules — lowercase with underscores
 module "vpc" {
   source = "./modules/vpc"
 }
 ```
 
+See the cloud-provider supplement for concrete resource naming examples.
+
 **Argument Ordering within Resource Blocks:**
 ```hcl
-resource "aws_instance" "web_server" {
+resource "<provider>_compute_instance" "web_server" {
   # 1. Meta-arguments first
   count = var.instance_count
 
   # 2. Required arguments
-  ami           = data.aws_ami.ubuntu.id
+  image         = data.<provider>_image.base.id
   instance_type = var.instance_type
-  subnet_id     = aws_subnet.public.id
+  subnet_id     = <provider>_subnet.public.id
 
   # 3. Optional arguments
-  associate_public_ip_address = true
-  monitoring                  = true
+  monitoring = true
 
-  # 4. Tags (always last argument before blocks)
+  # 4. Tags/labels (always last argument before blocks)
   tags = merge(local.common_tags, {
     Name = "web-server-${count.index}"
     Role = "web"
   })
 
   # 5. Nested blocks (separated by blank line)
-  root_block_device {
-    volume_size = 20
-    volume_type = "gp3"
-    encrypted   = true
+  disk {
+    size_gb   = 20
+    encrypted = true
   }
 
   # 6. Meta-argument blocks last
@@ -147,9 +144,9 @@ resource "aws_instance" "web_server" {
 # Use hash for single-line comments
 # Explain the WHY, not the WHAT
 
-# This security group allows internal traffic only because
-# the ALB handles all external connections
-resource "aws_security_group" "internal" {
+# This firewall rule allows internal traffic only because
+# the load balancer handles all external connections
+resource "<provider>_firewall_rule" "internal" {
   # ...
 }
 
@@ -266,18 +263,13 @@ variable "custom_domain" {
   nullable    = true
 }
 
-# Usage with conditional
-resource "aws_route53_record" "custom" {
+# Usage with conditional — create resource only when value is provided
+resource "<provider>_dns_record" "custom" {
   count = var.custom_domain != null ? 1 : 0
 
-  zone_id = data.aws_route53_zone.main.zone_id
-  name    = var.custom_domain
-  type    = "A"
-
-  alias {
-    name    = aws_lb.main.dns_name
-    zone_id = aws_lb.main.zone_id
-  }
+  name   = var.custom_domain
+  type   = "A"
+  target = <provider>_load_balancer.main.ip_address
 }
 ```
 
@@ -297,12 +289,12 @@ variable "vpc_cidr_block" {
 
 output "vpc_id" {
   description = "The ID of the VPC created by this module."
-  value       = aws_vpc.main.id
+  value       = <provider>_network.main.id
 }
 
 output "public_subnet_ids" {
   description = "List of public subnet IDs for load balancer placement."
-  value       = aws_subnet.public[*].id
+  value       = <provider>_subnet.public[*].id
 }
 ```
 
@@ -323,7 +315,7 @@ module "vpc" {
 
   environment        = "prod"
   vpc_cidr_block     = "10.0.0.0/16"
-  availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  availability_zones = ["zone-a", "zone-b", "zone-c"]
   enable_nat_gateway = true
 }
 ```
@@ -333,7 +325,7 @@ module "vpc" {
 | Name | Version |
 |------|---------|
 | terraform | >= 1.8.0 |
-| aws | ~> 5.0 |
+| <provider> | ~> X.0 |
 
 ## Inputs
 
@@ -354,20 +346,18 @@ module "vpc" {
 
 ```hcl
 # [GOOD] Explain WHY, not WHAT
-# Allow traffic from the ALB only, not directly from the internet.
-# This ensures all traffic passes through WAF rules.
-resource "aws_security_group_rule" "allow_alb" {
-  type                     = "ingress"
-  from_port                = 80
-  to_port                  = 80
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.alb.id
-  security_group_id        = aws_security_group.app.id
+# Allow traffic from the load balancer only, not directly from the internet.
+# This ensures all traffic passes through WAF/security rules.
+resource "<provider>_firewall_rule" "allow_lb" {
+  direction   = "ingress"
+  port        = 80
+  protocol    = "tcp"
+  source      = <provider>_load_balancer.main.id
 }
 
 # [BAD] Restating the obvious
-# Allow ingress on port 80 from ALB security group
-resource "aws_security_group_rule" "allow_alb" {
+# Allow ingress on port 80 from load balancer
+resource "<provider>_firewall_rule" "allow_lb" {
   # ...
 }
 ```
@@ -400,7 +390,7 @@ resource "aws_security_group_rule" "allow_alb" {
 
 ```
 modules/
-├── vpc/
+├── network/
 │   ├── main.tf           # Primary resources
 │   ├── variables.tf      # Input variables
 │   ├── outputs.tf        # Output values
@@ -408,13 +398,13 @@ modules/
 │   ├── locals.tf         # Local values (optional, if many)
 │   ├── data.tf           # Data sources (optional, if many)
 │   └── README.md         # Module documentation
-├── ecs/
+├── compute/
 │   ├── main.tf
 │   ├── variables.tf
 │   ├── outputs.tf
 │   ├── versions.tf
 │   └── README.md
-└── rds/
+└── database/
     ├── main.tf
     ├── variables.tf
     ├── outputs.tf
@@ -446,59 +436,43 @@ environments/
 
 ```hcl
 # [GOOD] Group related resources in logically named files
-# network.tf
-resource "aws_vpc" "main" { }
-resource "aws_subnet" "public" { }
-resource "aws_subnet" "private" { }
-resource "aws_internet_gateway" "main" { }
-resource "aws_nat_gateway" "main" { }
-resource "aws_route_table" "public" { }
-resource "aws_route_table" "private" { }
-
-# compute.tf
-resource "aws_ecs_cluster" "main" { }
-resource "aws_ecs_service" "app" { }
-resource "aws_ecs_task_definition" "app" { }
-
-# database.tf
-resource "aws_db_instance" "main" { }
-resource "aws_db_subnet_group" "main" { }
-
-# security.tf
-resource "aws_security_group" "alb" { }
-resource "aws_security_group" "app" { }
-resource "aws_security_group" "db" { }
+# network.tf — VPC/VNet, subnets, gateways, route tables
+# compute.tf — container clusters, services, task/workload definitions
+# database.tf — database instances, subnet groups
+# security.tf — firewall rules, security groups, IAM
+# storage.tf  — object storage buckets, block storage
 ```
+
+See the cloud-provider supplement for concrete resource examples per file.
 
 ### Module Composition
 
 ```hcl
 # environments/prod/main.tf
-module "vpc" {
-  source = "../../modules/vpc"
+module "network" {
+  source = "../../modules/network"
 
   environment        = var.environment
   vpc_cidr_block     = "10.0.0.0/16"
   availability_zones = var.availability_zones
-  enable_nat_gateway = true
 }
 
-module "ecs" {
-  source = "../../modules/ecs"
+module "compute" {
+  source = "../../modules/compute"
 
   environment    = var.environment
-  vpc_id         = module.vpc.vpc_id
-  subnet_ids     = module.vpc.private_subnet_ids
+  vpc_id         = module.network.vpc_id
+  subnet_ids     = module.network.private_subnet_ids
   desired_count  = 3
   container_port = 8080
 }
 
-module "rds" {
-  source = "../../modules/rds"
+module "database" {
+  source = "../../modules/database"
 
   environment       = var.environment
-  vpc_id            = module.vpc.vpc_id
-  subnet_ids        = module.vpc.private_subnet_ids
+  vpc_id            = module.network.vpc_id
+  subnet_ids        = module.network.private_subnet_ids
   database_config   = var.database_config
   database_password = var.database_password
 }
@@ -506,33 +480,24 @@ module "rds" {
 
 ### Remote State
 
-```hcl
-# backend.tf
-terraform {
-  backend "s3" {
-    bucket         = "mycompany-terraform-state"
-    key            = "prod/infrastructure.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "terraform-locks"
-    encrypt        = true
-  }
-}
+Configure a remote backend with encryption and state locking. The specific backend depends on your cloud provider:
 
-# Referencing remote state from another configuration
-data "terraform_remote_state" "vpc" {
-  backend = "s3"
+- **AWS:** S3 + DynamoDB locking (see AWS supplement)
+- **GCP:** GCS with versioning (see GCP supplement)
+- **Azure:** Azure Blob Storage with lease locking
+
+```hcl
+# Cross-stack state reference (provider-agnostic pattern)
+data "terraform_remote_state" "network" {
+  backend = "<backend_type>"
   config = {
-    bucket = "mycompany-terraform-state"
-    key    = "prod/vpc.tfstate"
-    region = "us-east-1"
+    # backend-specific config — see provider supplement
   }
 }
 
 # Use outputs from remote state
-resource "aws_ecs_service" "app" {
-  network_configuration {
-    subnets = data.terraform_remote_state.vpc.outputs.private_subnet_ids
-  }
+module "compute" {
+  subnet_ids = data.terraform_remote_state.network.outputs.private_subnet_ids
 }
 ```
 
@@ -544,14 +509,14 @@ resource "aws_ecs_service" "app" {
 
 ```hcl
 # Precondition: validate assumptions before resource creation
-resource "aws_instance" "web_server" {
-  ami           = data.aws_ami.ubuntu.id
+resource "<provider>_compute_instance" "web_server" {
+  image         = data.<provider>_image.base.id
   instance_type = var.instance_type
 
   lifecycle {
     precondition {
-      condition     = data.aws_ami.ubuntu.architecture == "x86_64"
-      error_message = "The selected AMI must be x86_64 architecture."
+      condition     = data.<provider>_image.base.architecture == "x86_64"
+      error_message = "The selected image must be x86_64 architecture."
     }
 
     postcondition {
@@ -568,7 +533,7 @@ resource "aws_instance" "web_server" {
 # check blocks validate assertions about infrastructure state
 check "health_check" {
   data "http" "app_health" {
-    url = "https://${aws_lb.main.dns_name}/health"
+    url = "https://${<provider>_load_balancer.main.dns_name}/health"
   }
 
   assert {
@@ -611,7 +576,7 @@ variable "domain_name" {
 
 ```hcl
 # Protect stateful resources from accidental destruction
-resource "aws_db_instance" "main" {
+resource "<provider>_database_instance" "main" {
   # ...
 
   lifecycle {
@@ -620,7 +585,7 @@ resource "aws_db_instance" "main" {
 }
 
 # Ignore externally managed changes
-resource "aws_autoscaling_group" "app" {
+resource "<provider>_autoscaling_group" "app" {
   # ...
 
   lifecycle {
@@ -629,7 +594,7 @@ resource "aws_autoscaling_group" "app" {
 }
 
 # Create replacement before destroying old resource
-resource "aws_instance" "web_server" {
+resource "<provider>_compute_instance" "web_server" {
   # ...
 
   lifecycle {
@@ -643,14 +608,14 @@ resource "aws_instance" "web_server" {
 ```hcl
 # Safely rename resources without destroy/recreate
 moved {
-  from = aws_instance.web
-  to   = aws_instance.web_server
+  from = <provider>_compute_instance.web
+  to   = <provider>_compute_instance.web_server
 }
 
 # Move into a module
 moved {
-  from = aws_vpc.main
-  to   = module.vpc.aws_vpc.main
+  from = <provider>_network.main
+  to   = module.network.<provider>_network.main
 }
 ```
 
@@ -674,8 +639,8 @@ terraform apply tfplan
 ### Native Terraform Tests
 
 ```hcl
-# tests/vpc_test.tftest.hcl
-run "creates_vpc_with_correct_cidr" {
+# tests/network_test.tftest.hcl
+run "creates_network_with_correct_cidr" {
   command = plan
 
   variables {
@@ -684,13 +649,8 @@ run "creates_vpc_with_correct_cidr" {
   }
 
   assert {
-    condition     = aws_vpc.main.cidr_block == "10.0.0.0/16"
-    error_message = "VPC CIDR block does not match expected value."
-  }
-
-  assert {
-    condition     = aws_vpc.main.enable_dns_hostnames == true
-    error_message = "DNS hostnames should be enabled."
+    condition     = <provider>_network.main.cidr_block == "10.0.0.0/16"
+    error_message = "Network CIDR block does not match expected value."
   }
 }
 
@@ -699,17 +659,17 @@ run "creates_correct_number_of_subnets" {
 
   variables {
     environment        = "test"
-    availability_zones = ["us-east-1a", "us-east-1b"]
+    availability_zones = ["zone-a", "zone-b"]
   }
 
   assert {
-    condition     = length(aws_subnet.public) == 2
-    error_message = "Should create one public subnet per AZ."
+    condition     = length(<provider>_subnet.public) == 2
+    error_message = "Should create one public subnet per zone."
   }
 
   assert {
-    condition     = length(aws_subnet.private) == 2
-    error_message = "Should create one private subnet per AZ."
+    condition     = length(<provider>_subnet.private) == 2
+    error_message = "Should create one private subnet per zone."
   }
 }
 
@@ -729,7 +689,7 @@ run "rejects_invalid_environment" {
 ### Integration Tests (Terratest)
 
 ```go
-// test/vpc_test.go
+// test/network_test.go
 package test
 
 import (
@@ -739,15 +699,15 @@ import (
     "github.com/stretchr/testify/assert"
 )
 
-func TestVpcModule(t *testing.T) {
+func TestNetworkModule(t *testing.T) {
     t.Parallel()
 
     terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-        TerraformDir: "../modules/vpc",
+        TerraformDir: "../modules/network",
         Vars: map[string]interface{}{
             "environment":        "test",
             "vpc_cidr_block":     "10.99.0.0/16",
-            "availability_zones": []string{"us-east-1a", "us-east-1b"},
+            "availability_zones": []string{"zone-a", "zone-b"},
         },
     })
 
@@ -765,22 +725,22 @@ func TestVpcModule(t *testing.T) {
 ### Static Analysis (Policy as Code)
 
 ```bash
-# Checkov - static analysis for security
+# Checkov — static analysis for security
 checkov -d . --framework terraform
 
-# tfsec - security scanner
+# tfsec — security scanner
 tfsec .
 
-# OPA/Conftest - custom policy checks
+# OPA/Conftest — custom policy checks
 conftest test . -p policies/
 
 # Example OPA policy (policies/main.rego)
 # package main
 #
 # deny[msg] {
-#   resource := input.resource.aws_s3_bucket[name]
-#   not resource.server_side_encryption_configuration
-#   msg := sprintf("S3 bucket '%s' must have encryption enabled", [name])
+#   resource := input.resource.<provider>_storage_bucket[name]
+#   not resource.encryption
+#   msg := sprintf("Storage bucket '%s' must have encryption enabled", [name])
 # }
 ```
 
@@ -801,124 +761,63 @@ variable "database_password" {
 # [GOOD] Mark sensitive outputs
 output "database_connection_string" {
   description = "Database connection string (contains credentials)"
-  value       = "postgresql://${var.db_user}:${var.db_password}@${aws_db_instance.main.endpoint}"
+  value       = "postgresql://${var.db_user}:${var.db_password}@${<provider>_database.main.endpoint}"
   sensitive   = true
 }
 
 # [BAD] Never hardcode secrets
-resource "aws_db_instance" "main" {
+resource "<provider>_database_instance" "main" {
   password = "my-secret-password"  # NEVER DO THIS
 }
 
-# [GOOD] Use a secret manager
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = "prod/database/password"
-}
-
-resource "aws_db_instance" "main" {
-  password = data.aws_secretsmanager_secret_version.db_password.secret_string
-}
+# [GOOD] Use your cloud provider's secret manager
+# AWS: aws_secretsmanager_secret_version / aws_ssm_parameter
+# GCP: google_secret_manager_secret_version
+# Azure: azurerm_key_vault_secret
+# See the cloud-provider supplement for concrete examples.
 ```
 
 ### Remote State Encryption
 
-```hcl
-# [GOOD] Encrypted remote state with locking
-terraform {
-  backend "s3" {
-    bucket         = "mycompany-terraform-state"
-    key            = "prod/infrastructure.tfstate"
-    region         = "us-east-1"
-    encrypt        = true                        # Encrypt state at rest
-    dynamodb_table = "terraform-locks"           # State locking
-    kms_key_id     = "alias/terraform-state-key" # Custom KMS key
-  }
-}
-```
+Remote state must be encrypted at rest and protected with state locking:
 
-### IAM Least Privilege
+- **AWS:** S3 with `encrypt = true`, KMS key, DynamoDB locking
+- **GCP:** GCS with CMEK encryption, built-in locking
+- **Azure:** Blob Storage with encryption, lease-based locking
 
-```hcl
-# [GOOD] Minimal permissions for each role
-resource "aws_iam_role_policy" "app" {
-  name = "app-policy"
-  role = aws_iam_role.app.id
+See the cloud-provider supplement for the concrete backend configuration.
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-        ]
-        Resource = "${aws_s3_bucket.app_data.arn}/*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "sqs:SendMessage",
-          "sqs:ReceiveMessage",
-          "sqs:DeleteMessage",
-        ]
-        Resource = aws_sqs_queue.app.arn
-      },
-    ]
-  })
-}
+### IAM / Access Control — Least Privilege
 
-# [BAD] Overly permissive
-resource "aws_iam_role_policy" "app" {
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = "*"
-      Resource = "*"
-    }]
-  })
-}
-```
+Every cloud provider has an IAM system. Regardless of provider, follow these principles:
+
+- **Scope permissions to specific actions and resources** — never use wildcard `*` for both action and resource
+- **Use roles over static credentials** (service accounts, managed identities, IAM roles)
+- **Prefer resource-level bindings** over broad project/account-level permissions
+- **Separate duty** — different roles for deployment, application runtime, and admin
+
+See the cloud-provider supplement for concrete IAM resource examples.
 
 ### Encryption at Rest
 
-```hcl
-# Always enable encryption for data stores
-resource "aws_s3_bucket_server_side_encryption_configuration" "main" {
-  bucket = aws_s3_bucket.main.id
+All data stores must be encrypted at rest. Use customer-managed keys (CMK/CMEK) for production:
 
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.main.arn
-    }
-  }
-}
+- **Object storage** (S3, GCS, Blob Storage) — server-side encryption with managed key
+- **Databases** (RDS, Cloud SQL, Azure SQL) — storage encryption enabled
+- **Block storage** (EBS, Persistent Disks, Managed Disks) — encrypted volumes
 
-resource "aws_db_instance" "main" {
-  storage_encrypted = true
-  kms_key_id        = aws_kms_key.main.arn
-  # ...
-}
-
-resource "aws_ebs_volume" "data" {
-  encrypted  = true
-  kms_key_id = aws_kms_key.main.arn
-  # ...
-}
-```
+See the cloud-provider supplement for provider-specific encryption resource examples.
 
 **Security Checklist:**
 - [ ] No secrets in code, variables, or version control
-- [ ] Remote state encrypted with KMS and locked with DynamoDB
+- [ ] Remote state encrypted and locked
 - [ ] All `sensitive` flags set on variables and outputs containing credentials
-- [ ] IAM policies follow least privilege principle
-- [ ] All storage encrypted at rest (S3, RDS, EBS)
+- [ ] IAM/access policies follow least privilege principle
+- [ ] All storage encrypted at rest (object storage, databases, block storage)
 - [ ] All data in transit encrypted (TLS/SSL)
-- [ ] Security groups restrict access to minimum needed
-- [ ] Public access blocked on S3 buckets (unless explicitly required)
-- [ ] Provider credentials managed via IAM roles (not static keys)
+- [ ] Firewall rules / security groups restrict access to minimum needed
+- [ ] Public access blocked on object storage (unless explicitly required)
+- [ ] Provider credentials managed via roles/service accounts (not static keys)
 - [ ] Static analysis (tfsec/checkov) passes with no critical findings
 
 ---
@@ -929,10 +828,10 @@ resource "aws_ebs_volume" "data" {
 
 ```hcl
 # [GOOD] Use count/for_each for multiple similar resources
-resource "aws_subnet" "public" {
+resource "<provider>_subnet" "public" {
   for_each = toset(var.availability_zones)
 
-  vpc_id            = aws_vpc.main.id
+  network_id        = <provider>_network.main.id
   cidr_block        = cidrsubnet(var.vpc_cidr_block, 8, index(var.availability_zones, each.value))
   availability_zone = each.value
 
@@ -943,16 +842,16 @@ resource "aws_subnet" "public" {
 }
 
 # [BAD] Separate resources for each (repetitive, hard to maintain)
-resource "aws_subnet" "public_a" {
-  vpc_id            = aws_vpc.main.id
+resource "<provider>_subnet" "public_a" {
+  network_id        = <provider>_network.main.id
   cidr_block        = "10.0.1.0/24"
-  availability_zone = "us-east-1a"
+  availability_zone = "zone-a"
 }
 
-resource "aws_subnet" "public_b" {
-  vpc_id            = aws_vpc.main.id
+resource "<provider>_subnet" "public_b" {
+  network_id        = <provider>_network.main.id
   cidr_block        = "10.0.2.0/24"
-  availability_zone = "us-east-1b"
+  availability_zone = "zone-b"
 }
 ```
 
@@ -960,10 +859,10 @@ resource "aws_subnet" "public_b" {
 
 ```bash
 # Apply changes to specific resources only (use sparingly)
-terraform apply -target=module.ecs
+terraform apply -target=module.compute
 
 # Refresh specific resources
-terraform apply -refresh-only -target=aws_instance.web_server
+terraform apply -refresh-only -target=<provider>_compute_instance.web_server
 ```
 
 ### State Splitting
@@ -1035,9 +934,10 @@ terraform {
   required_version = ">= 1.8.0, < 2.0.0"
 
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.50"
+    # Pin your cloud provider — see supplement for recommended version
+    <provider> = {
+      source  = "hashicorp/<provider>"
+      version = "~> X.Y"
     }
     random = {
       source  = "hashicorp/random"
@@ -1051,9 +951,9 @@ terraform {
 
 ```hcl
 # [GOOD] Pin to specific version or version range
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "5.8.0"
+module "network" {
+  source  = "<registry>/<module>/<provider>"
+  version = "X.Y.Z"
 }
 
 # [GOOD] Pin to a Git tag
@@ -1062,8 +962,8 @@ module "custom" {
 }
 
 # [BAD] No version constraint
-module "vpc" {
-  source = "terraform-aws-modules/vpc/aws"
+module "network" {
+  source = "<registry>/<module>/<provider>"
 }
 
 # [BAD] Pointing to branch (mutable reference)
@@ -1071,6 +971,8 @@ module "custom" {
   source = "git::https://github.com/myorg/terraform-module.git?ref=main"
 }
 ```
+
+See the cloud-provider supplement for recommended community modules and versions.
 
 ### Lock File
 
@@ -1143,7 +1045,7 @@ terraform plan -detailed-exitcode
 # Alert if exit code is 2
 ```
 
-### Resource Tagging for Observability
+### Resource Tagging / Labeling for Observability
 
 ```hcl
 locals {
@@ -1153,19 +1055,11 @@ locals {
     ManagedBy   = "terraform"
     Team        = var.team_name
     CostCenter  = var.cost_center
-    CreatedAt   = timestamp()
   }
 }
-
-# Apply to all resources
-resource "aws_instance" "web_server" {
-  # ...
-  tags = merge(local.common_tags, {
-    Name = "web-server"
-    Role = "web"
-  })
-}
 ```
+
+Apply `common_tags` (AWS/Azure) or `common_labels` (GCP) to every resource. See the cloud-provider supplement for the tagging/labeling conventions and provider-specific tag features (e.g., `default_tags`).
 
 ---
 
@@ -1197,9 +1091,9 @@ resource "aws_instance" "web_server" {
 **Security:**
 - [ ] No secrets in code or tfvars committed to VCS
 - [ ] Sensitive flags on appropriate variables/outputs
-- [ ] IAM follows least privilege
+- [ ] IAM / access control follows least privilege
 - [ ] Encryption enabled on all data stores
-- [ ] Security groups restrict to minimum access
+- [ ] Firewall rules / security groups restrict to minimum access
 - [ ] tfsec/checkov passes
 
 **Safety:**
@@ -1274,13 +1168,8 @@ repos:
 ### TFLint Configuration
 
 ```hcl
-# .tflint.hcl
-plugin "aws" {
-  enabled = true
-  version = "0.31.0"
-  source  = "github.com/terraform-linters/tflint-ruleset-aws"
-}
-
+# .tflint.hcl — provider-agnostic rules
+# Add the provider-specific plugin from your supplement
 rule "terraform_naming_convention" {
   enabled = true
 }
@@ -1301,6 +1190,8 @@ rule "terraform_unused_declarations" {
   enabled = true
 }
 ```
+
+See the cloud-provider supplement for the provider-specific TFLint plugin (`tflint-ruleset-aws`, `tflint-ruleset-google`, etc.).
 
 ### CI/CD Pipeline
 
@@ -1415,13 +1306,13 @@ terraform show
 terraform state list
 
 # Import existing resource
-terraform import aws_instance.web_server i-1234567890abcdef0
+terraform import <provider>_compute_instance.web_server <resource-id>
 
 # Move resource in state (refactoring)
-terraform state mv aws_instance.old aws_instance.new
+terraform state mv <provider>_compute_instance.old <provider>_compute_instance.new
 
 # Remove resource from state (without destroying)
-terraform state rm aws_instance.legacy
+terraform state rm <provider>_compute_instance.legacy
 
 # Destroy infrastructure
 terraform destroy
@@ -1453,15 +1344,19 @@ pre-commit run --all-files
 - [HashiCorp Terraform Style Guide](https://developer.hashicorp.com/terraform/language/style)
 - [HashiCorp Terraform Recommended Practices](https://developer.hashicorp.com/terraform/cloud-docs/recommended-practices)
 - [HashiCorp Standard Module Structure](https://developer.hashicorp.com/terraform/language/modules/develop/structure)
-- [Google Cloud Terraform Best Practices](https://docs.cloud.google.com/docs/terraform/best-practices/general-style-structure)
 - [Terraform Best Practices (community)](https://www.terraform-best-practices.com/)
 - [tfsec Documentation](https://aquasecurity.github.io/tfsec/)
 - [Checkov Documentation](https://www.checkov.io/1.Welcome/What%20is%20Checkov.html)
 - [Terratest Documentation](https://terratest.gruntwork.io/)
+
+**Cloud-Provider Supplements:**
+- AWS-specific patterns → `TERRAFORM-AWS-SUPPLEMENT.md`
+- GCP-specific patterns → `TERRAFORM-GCP-SUPPLEMENT.md`
 
 ---
 
 **Questions or suggestions?** Update this document through team discussion and code review.
 
 **Version History:**
+- v2.0 (2026) - Refactored to provider-agnostic base with cloud-specific supplements
 - v1.0 (2026) - Initial enterprise-grade guidelines

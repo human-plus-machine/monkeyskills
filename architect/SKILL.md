@@ -316,7 +316,7 @@ Hide/rename only — do not delete feature code.
 
 ## Anti-patterns
 
-- Hard-coding a single customer demo (ITSCHR, etc.) into this skill — put
+- Hard-coding a single customer demo into this skill — put
   customer specifics in a topology brief / harness module
 - Editing Main Agent persona **after** managed markers (wiped on relaunch)
 - Attaching MCP without `enabled: true`

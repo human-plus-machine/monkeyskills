@@ -1,5 +1,5 @@
 ---
-name: monkeythinky-brief
+name: monkeythink-brief
 description: Phase 3 - Discovery Brief. Produces the discovery-brief.md handoff artifact from all prior phases. Structured to be directly consumed by MonkeyPlan Phase 0 Path C (Discovery Import), enabling MonkeyPlan to skip redundant questions.
 ---
 
@@ -7,7 +7,7 @@ description: Phase 3 - Discovery Brief. Produces the discovery-brief.md handoff 
 
 ## Purpose
 
-Produce the discovery brief — a single, structured document that captures everything learned in the MonkeyThink and hands it off to `@monkeyplan` in a format MonkeyPlan can consume directly. The discovery brief replaces MonkeyPlan's Phase 0 interview for users who have completed the Discover flow.
+Produce the discovery brief — a single, structured document that captures everything learned in the MonkeyThink and hands it off to `@monkeyplan` in a format MonkeyPlan can consume directly. The discovery brief replaces MonkeyPlan's Phase 0 interview for users who have completed the MonkeyThink flow.
 
 A good discovery brief answers the questions MonkeyPlan would ask in Phase 0, so MonkeyPlan can skip straight to requirements generation.
 
@@ -23,10 +23,10 @@ Phase 3 begins after:
 ## Step 1: Load All Prior Artifacts
 
 Before generating the discovery brief, read:
-- `{workspace}/.monkeythink/{topic-name}/state.json` — framing data, direction data, phase statuses
-- `{workspace}/.monkeythink/{topic-name}/framing.md` — full problem framing
-- `{workspace}/.monkeythink/{topic-name}/exploration-synthesis.md` — council synthesis
-- `{workspace}/.monkeythink/{topic-name}/risk-challenge.md` — risk findings (if exists)
+- `{workspace}/.monkeythink/{feature-name}/state.json` — framing data, direction data, phase statuses
+- `{workspace}/.monkeythink/{feature-name}/framing.md` — full problem framing
+- `{workspace}/.monkeythink/{feature-name}/exploration-synthesis.md` — council synthesis
+- `{workspace}/.monkeythink/{feature-name}/risk-challenge.md` — risk findings (if exists)
 - `{workspace}/DESIGN.md` — design token file (if `phase_status.design_md` is `loaded` or `generated`)
 
 This ensures the brief is comprehensive and nothing from earlier phases is lost.
@@ -35,9 +35,9 @@ This ensures the brief is comprehensive and nothing from earlier phases is lost.
 
 ## Step 2: Generate the Discovery Brief
 
-Produce `{workspace}/.monkeythink/{topic-name}/discovery-brief.md` following the template at `templates/discovery-brief-template.md`.
+Produce `{workspace}/.monkeythink/{feature-name}/discovery-brief.md` following the template at `templates/discovery-brief-template.md`.
 
-The brief must be self-contained — a reader who has not been part of the Discover session should be able to understand the problem, the chosen direction, the key decisions made, and the risks acknowledged by reading only this document.
+The brief must be self-contained — a reader who has not been part of the MonkeyThink session should be able to understand the problem, the chosen direction, the key decisions made, and the risks acknowledged by reading only this document.
 
 **Section guidance:**
 
@@ -78,7 +78,7 @@ Brief note on the council process: how many LLMs participated, key consensus the
 From `framing.prior_art`. Links, references, related work.
 
 **13. Open Questions**
-What is still unknown or unresolved at the end of the Discover phase? These are the questions MonkeyPlan should address in requirements generation.
+What is still unknown or unresolved at the end of the MonkeyThink phase? These are the questions MonkeyPlan should address in requirements generation.
 
 ---
 
@@ -89,7 +89,7 @@ Present a summary of the discovery brief:
 ```
 "The discovery brief is ready. Here's a summary:
 
-**Topic:** {topic_name}
+**Topic:** {feature-name}
 **Chosen Direction:** {direction.chosen}
 
 **Problem:** {2-sentence summary of problem statement}
@@ -103,7 +103,7 @@ Present a summary of the discovery brief:
 
 **Open questions for MonkeyPlan:** {count} open questions documented
 
-Full brief at .monkeythink/{topic-name}/discovery-brief.md
+Full brief at .monkeythink/{feature-name}/discovery-brief.md
 
 Does this capture the outcome of our discovery session? Ready to finalize?
 
@@ -128,7 +128,7 @@ Once user approves:
 2. Offer MonkeyPlan handoff (from SKILL.md MonkeyPlan Handoff section):
    ```
    "Would you like to hand this off to MonkeyPlan for structured requirements?
-   I'll copy the discovery brief to .monkeyplan/{topic-name}/discovery-brief.md
+   I'll copy the discovery brief to .monkeyplan/{feature-name}/discovery-brief.md
    so MonkeyPlan Phase 0 can use it as context and skip questions already answered here.
 
    1. Yes - Set up MonkeyPlan handoff
@@ -136,17 +136,17 @@ Once user approves:
    ```
 
 3. If accepted:
-   - Create `.monkeyplan/{topic-name}/discovery-brief.md` as a copy of the discovery brief
-   - If `{workspace}/DESIGN.md` exists: note in the announcement that it's available at the workspace root and MonkeyPlan Phase 2 (UX Ideation) can reference it as the design token source
+   - Create `.monkeyplan/{feature-name}/discovery-brief.md` as a copy of the discovery brief
+   - If `{workspace}/DESIGN.md` exists: also copy it to `.monkeyplan/{feature-name}/DESIGN.md` (MonkeyPlan Phase 2 (UX Ideation) reads it from there if present as the design token source) and mention this in the announcement
    - Update `monkeyplan_handoff` in state.json
-   - Announce: "Discovery brief copied to .monkeyplan/{topic-name}/discovery-brief.md. When you're ready, invoke @monkeyplan for {topic-name} and it will load the discovery brief as context, skipping questions already answered here.[if DESIGN.md exists] Your DESIGN.md is also at the workspace root — MonkeyPlan's UX Ideation phase will use it as the design token source."
+   - Announce: "Discovery brief copied to .monkeyplan/{feature-name}/discovery-brief.md. When you're ready, invoke @monkeyplan for {feature-name} and it will load the discovery brief as context, skipping questions already answered here.[if DESIGN.md exists] Your DESIGN.md was also copied to .monkeyplan/{feature-name}/DESIGN.md — MonkeyPlan's UX Ideation phase will use it as the design token source."
 
 4. Offer export options:
    ```
-   "Your discovery brief is saved at .monkeythink/{topic-name}/discovery-brief.md.
+   "Your discovery brief is saved at .monkeythink/{feature-name}/discovery-brief.md.
 
    1. Keep as-is — I'll use it directly in this workspace (default)
-   2. Export to project root — Copy discovery-brief.md to {workspace}/{topic-name}-discovery-brief.md for easy sharing"
+   2. Export to project root — Copy discovery-brief.md to {workspace}/{feature-name}-discovery-brief.md for easy sharing"
    ```
 
 ---
@@ -166,7 +166,7 @@ When MonkeyPlan's Phase 0 Path C detects `discovery-brief.md`, it maps sections 
 | Constraints | `intake.additional_context` |
 | Risks Acknowledged | Referenced in MonkeyPlan Section 10 (Risks/Dependencies) |
 | Open Questions | Flagged as `[ASSUMPTION]` items in MonkeyPlan |
-| `DESIGN.md` (workspace root) | Read by MonkeyPlan Phase 2 (UX Ideation) as the design token source; no re-generation needed |
+| `DESIGN.md` (copied to `.monkeyplan/{feature-name}/DESIGN.md`) | Read by MonkeyPlan Phase 2 (UX Ideation) as the design token source if present; no re-generation needed |
 
 ---
 

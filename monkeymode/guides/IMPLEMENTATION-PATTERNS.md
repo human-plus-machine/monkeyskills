@@ -131,57 +131,18 @@ assert mock_repository.find_by_id.call_count == 1
 ### Integration Test Structure
 
 ```python
-import pytest
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
- 
-class TestFavoritesAPIIntegration:
-    """Integration tests for Favorites API."""
-    
-    @pytest.fixture
-    async def client(self, app):
-        """Create test client."""
-        async with AsyncClient(app=app, base_url="http://test") as client:
-            yield client
-    
-    @pytest.fixture
-    async def auth_token(self, client):
-        """Get authentication token for tests."""
-        response = await client.post("/auth/login", json={
-            "email": "test@example.com",
-            "password": "testpass123"
-        })
-        return response.json()["access_token"]
-    
-    @pytest.fixture(autouse=True)
-    async def clean_database(self, db_session: AsyncSession):
-        """Clean database before each test."""
-        await db_session.execute("DELETE FROM favorites")
-        await db_session.commit()
-        yield
-        await db_session.execute("DELETE FROM favorites")
-        await db_session.commit()
-    
-    async def test_add_favorite_and_retrieve(self, client, auth_token):
-        """Test adding favorite and retrieving it."""
-        # Add favorite
-        add_response = await client.post(
-            "/favorites",
-            headers={"Authorization": f"Bearer {auth_token}"},
-            json={"product_id": "550e8400-e29b-41d4-a716-446655440000"}
-        )
-        assert add_response.status_code == 201
-        assert "id" in add_response.json()
-        
-        # Retrieve favorites
-        get_response = await client.get(
-            "/favorites",
-            headers={"Authorization": f"Bearer {auth_token}"}
-        )
-        assert get_response.status_code == 200
-        favorites = get_response.json()["items"]
-        assert len(favorites) == 1
-        assert favorites[0]["product_id"] == "550e8400-e29b-41d4-a716-446655440000"
+# Integration Test Pattern
+# Integration test setup is framework-specific.
+# See your framework supplement for examples:
+# - FastAPI: httpx AsyncClient (PYTHON-FASTAPI-SUPPLEMENT.md)
+# - Django: APITestCase, APIClient (PYTHON-DJANGO-SUPPLEMENT.md)
+#
+# General principles:
+# 1. Test the full request/response cycle through real HTTP
+# 2. Use a test database (containers or in-memory)
+# 3. Clean database state between tests
+# 4. Test authentication/authorization flows
+# 5. Verify response status codes and body structure
 ```
 
 ---
@@ -207,7 +168,7 @@ if not product:
 ### Try-Except at Boundary
 
 ```python
-# Service raises
+# Service raises domain exceptions
 async def add_favorite(self, user_id: UUID, product_id: UUID) -> Favorite:
     """Add favorite with validation."""
     product = await self.products_service.find_by_id(product_id)
@@ -215,14 +176,8 @@ async def add_favorite(self, user_id: UUID, product_id: UUID) -> Favorite:
         raise NotFoundError('Product', str(product_id))
     return await self.repository.add(user_id, product_id)
  
-# Controller/Route catches
-@router.post("/favorites")
-async def create_favorite(dto: CreateFavoriteDto, user: User = Depends(get_current_user)):
-    """Create a new favorite."""
-    try:
-        return await service.add_favorite(user.id, dto.product_id)
-    except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+# Controller/Route catches and converts to HTTP response
+# (framework-specific — see your framework supplement)
 ```
 
 ---
@@ -390,93 +345,69 @@ class FavoritesService:
         )
 ```
 
-### Controller/Router Pattern (FastAPI)
+### Controller/Router Pattern
 
 ```python
-from fastapi import APIRouter, Depends, HTTPException, status
-from uuid import UUID
- 
-router = APIRouter(prefix="/favorites", tags=["favorites"])
- 
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=FavoriteResponse)
-async def add_favorite(
-    dto: AddFavoriteDto,
-    user: User = Depends(get_current_user),
-    service: FavoritesService = Depends(get_favorites_service),
-) -> FavoriteResponse:
-    """Add a product to user's favorites.
-    
-    Args:
-        dto: Request body with product_id
-        user: Current authenticated user
-        service: Favorites service instance
-        
-    Returns:
-        Created favorite
-        
-    Raises:
-        HTTPException: 404 if product not found, 409 if already favorited
-    """
-    try:
-        return await service.add_favorite(user.id, dto.product_id)
-    except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ConflictError as e:
-        raise HTTPException(status_code=409, detail=str(e))
- 
-@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_favorite(
-    product_id: UUID,
-    user: User = Depends(get_current_user),
-    service: FavoritesService = Depends(get_favorites_service),
-) -> None:
-    """Remove a product from user's favorites."""
-    await service.remove_favorite(user.id, product_id)
- 
-@router.get("/", response_model=PaginatedResponse[FavoriteResponse])
-async def get_favorites(
-    pagination: PaginationParams = Depends(),
-    user: User = Depends(get_current_user),
-    service: FavoritesService = Depends(get_favorites_service),
-) -> PaginatedResponse[FavoriteResponse]:
-    """Get user's favorites with pagination."""
-    items = await service.get_user_favorites(user.id, pagination)
-    total = await service.count_user_favorites(user.id)
-    
-    return PaginatedResponse(
-        items=items,
-        total=total,
-        offset=pagination.offset,
-        limit=pagination.limit,
-        has_more=pagination.offset + len(items) < total,
-    )
+# Presentation Layer Pattern
+# The controller/router pattern is framework-specific.
+# See your framework supplement for examples:
+# - FastAPI: PYTHON-FASTAPI-SUPPLEMENT.md (APIRouter, Depends())
+# - Django: PYTHON-DJANGO-SUPPLEMENT.md (ViewSet, Serializer)
+#
+# General principles (framework-agnostic):
+# 1. Controllers should be thin — delegate business logic to services
+# 2. Convert domain exceptions to HTTP responses at this layer
+# 3. Validate input at the boundary (use framework validation)
+# 4. Return DTOs/response models, not domain entities
+
+# Generic controller pattern (pseudocode — adapt to your framework)
+class FavoritesController:
+    """Thin controller that delegates to service layer."""
+
+    def __init__(self, service: FavoritesService) -> None:
+        self.service = service
+
+    async def add_favorite(self, user_id: UUID, product_id: UUID):
+        """Add favorite — translate domain errors to HTTP responses."""
+        try:
+            favorite = await self.service.add_favorite(user_id, product_id)
+            return self._to_response(favorite), 201
+        except NotFoundError as e:
+            return {"error": str(e)}, 404
+        except ConflictError as e:
+            return {"error": str(e)}, 409
 ```
 
-### DTO Validation (Pydantic)
+### DTO Validation
 
 ```python
-from pydantic import BaseModel, Field
+# DTO Validation Pattern
+# Validation approach is framework-specific.
+# See your framework supplement for examples:
+# - FastAPI: Pydantic BaseModel (PYTHON-FASTAPI-SUPPLEMENT.md)
+# - Django: DRF Serializers (PYTHON-DJANGO-SUPPLEMENT.md)
+#
+# General principles:
+# 1. Validate all external input at the boundary
+# 2. Use dedicated DTO/request classes (not domain entities)
+# 3. Return clear error messages for validation failures
+# 4. Separate request DTOs from response DTOs
+
+from dataclasses import dataclass
 from uuid import UUID
- 
-class AddFavoriteDto(BaseModel):
-    """Request body for adding a favorite."""
-    product_id: UUID = Field(..., description="Product UUID to favorite")
- 
-class FavoriteResponse(BaseModel):
-    """Response model for favorite."""
+
+@dataclass(frozen=True)
+class AddFavoriteRequest:
+    """Request DTO for adding a favorite."""
+    product_id: UUID
+
+@dataclass(frozen=True)
+class FavoriteResponse:
+    """Response DTO for favorite."""
     id: UUID
     user_id: UUID
     product_id: UUID
     created_at: str
-    
-    class Config:
-        from_attributes = True  # Allows creation from ORM models
- 
-# FastAPI validates automatically
-@router.post("/")
-async def create(dto: AddFavoriteDto):  # Pydantic validates dto
-    # dto.product_id is guaranteed to be a valid UUID
-    pass
 ```
 
 ---
@@ -587,18 +518,8 @@ user: Optional[User] = await repository.find_by_id(user_id)
 ### Integration Issues
 
 **Issue:** Dependency injection not working
-**Solution:** Verify dependencies are properly configured
-```python
-# FastAPI example - use Depends()
-from fastapi import Depends
- 
-def get_repository(session: AsyncSession = Depends(get_session)):
-    return FavoritesRepository(session)
- 
-@router.post("/")
-async def create(
-    repo: FavoritesRepository = Depends(get_repository)
-):
-    # repo is injected automatically
-    pass
-```
+**Solution:** Verify dependencies are properly configured. DI setup is framework-specific — see your framework supplement for examples:
+- FastAPI: `Depends()` (PYTHON-FASTAPI-SUPPLEMENT.md)
+- Django: constructor injection or `django-injector` (PYTHON-DJANGO-SUPPLEMENT.md)
+- Spring Boot: `@Autowired` / constructor injection (JAVA-SPRING-BOOT-SUPPLEMENT.md)
+- Quarkus: `@Inject` / CDI (JAVA-QUARKUS-SUPPLEMENT.md)

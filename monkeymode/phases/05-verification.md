@@ -40,7 +40,7 @@ For each eligible story, spawn a `verifier` subagent (`subagent_type: "verifier"
 - Verifier subagents are **read-only** — they do NOT modify any files
 - Never exceed 10 concurrent subagents
 - Each verifier gets a complete, self-contained prompt
-- **Do NOT pass a `model` parameter** when spawning subagents via the Task tool. Omit it entirely so subagents inherit the parent conversation's model. Never use `model: "fast"` for verification or rework — these require the full-capability model.
+- **Do NOT pass a `model` parameter** when spawning subagents via the Task tool. Omit it entirely so subagents inherit the parent conversation's model. Do not select a fast/cheap model for verification or rework (if your tool supports selecting one); otherwise omit the model. These require the full-capability model.
 
 ### Step V3: Collect Verification Results
 
@@ -61,8 +61,8 @@ IF overall_status == "pass":
 IF overall_status == "pass-with-warnings":
   -> Present warnings to user
   -> User decides: proceed to integration or fix warnings first
-  -> If proceed: mark as "verified"
-  -> If fix: enter rework loop (Step V5)
+  -> If proceed: mark as "verified" with verification.result "pass-with-warnings" (Step V7)
+  -> If fix: mark as "verification_failed" with verification.result "pass-with-warnings", enter rework loop (Step V5)
 
 IF overall_status == "fail":
   -> Enter rework loop (Step V5)
@@ -83,7 +83,7 @@ WHILE story.status != "verified" AND rework_attempts < max_rework_attempts:
      -> Load phases/rework.md and follow the structured rework process
      -> This may cascade back to Phase 3 or earlier
      -> After spec rework, re-implement, then re-verify
-  4. IF reworker completed:
+  4. IF reworker completed (the reworker only returns `completed` or `escalated`):
      -> Re-verify by spawning verifier subagent again
      -> Go back to Step V4 with new results
   5. Increment rework_attempts
@@ -149,12 +149,20 @@ After verification completes, update state.json:
         "last_checked_at": "ISO8601 timestamp"
       }
     },
+    "story-2-vector-store": {
+      "status": "verified",
+      "verification": {
+        "result": "pass-with-warnings",
+        "rework_attempts": 0,
+        "last_checked_at": "ISO8601 timestamp"
+      }
+    },
     "story-3-storage": {
       "status": "verified",
       "verification": {
         "result": "pass",
         "rework_attempts": 1,
-        "rework_summary": "Added missing error handling for S3 connection timeout",
+        "rework_summary": "Added missing error handling for storage connection timeout",
         "last_checked_at": "ISO8601 timestamp"
       }
     },
@@ -183,6 +191,9 @@ After verification completes, update state.json:
 **Story:** {story_title}
 **Story ID:** {story_key}
 **Feature:** {feature_name}
+**Infrastructure story:** {true | false}
+
+Set to `true` when `context.detected_stack.language` is `hcl` in state.json, OR when the story's code spec primarily creates/modifies Terraform, CloudFormation, or CDK files. This triggers the infrastructure architecture review (Step 7b) in the verifier.
 
 ## Code Spec
 
@@ -196,6 +207,14 @@ Before verifying any code, read these files to load context:
 - {workspace}/.monkeymode/{feature-name}/design/1a-discovery.md — sections: {list relevant section names}
 - {workspace}/.monkeymode/{feature-name}/design/1b-contracts.md — sections: {list relevant section names}
 - {workspace}/.monkeymode/{feature-name}/design/1c-operations.md — sections: {list relevant section names}
+
+**Language-specific coding guidelines** (base guide + framework/cloud supplement + platform supplement, per `context.detected_stack`; supplements take precedence):
+- Base guide: {skill_dir}/monkeymode/guides/{LANGUAGE}-CODING-GUIDELINES.md
+- Framework supplement (if applicable): {skill_dir}/monkeymode/guides/{LANGUAGE}-{FRAMEWORK}-SUPPLEMENT.md
+- Cloud provider supplement (if infrastructure story): {skill_dir}/monkeymode/guides/TERRAFORM-{PROVIDER}-SUPPLEMENT.md
+- Platform supplement (only if `detected_stack.platform_supplement_loaded == true`): {skill_dir}/monkeymode/guides/{PLATFORM}-PLATFORM-SUPPLEMENT.md
+
+The orchestrator fills in the actual paths based on `context.detected_stack` in state.json.
 
 ## Implemented Files
 
@@ -215,6 +234,25 @@ Before verifying any code, read these files to load context:
 ## Linter Results
 
 {paste linter output — clean or list of errors}
+
+## Security Verification Baseline
+
+Read and verify against:
+- design/1c-operations.md — Security Design (all controls implemented)
+- design/1b-contracts.md — Authorization Matrix (all rows have passing tests)
+- code spec — SEC-* test cases (all PASS)
+
+### Security Checklist (FAIL on any critical item)
+- [ ] Auth enforced on all protected endpoints
+- [ ] Authz checks before data access (no IDOR)
+- [ ] Input validation at API boundary (type, length, allowlist)
+- [ ] Parameterized queries / ORM — no raw SQL concatenation
+- [ ] No secrets, tokens, or PII in logs or error responses
+- [ ] Security headers configured (if HTTP-facing)
+- [ ] Dependency audit: no unmitigated critical/high CVEs in new dependencies
+- [ ] Secret scan: clean
+
+**Severity:** Critical security gap -> overall_status: fail. Medium -> pass-with-warnings.
 ```
 
 ## Reworker Prompt Template
@@ -245,13 +283,13 @@ Before making any fixes, read these files to load context:
 **Design context** (read the sections referenced by the code spec above):
 - {workspace}/.monkeymode/{feature-name}/design/1b-contracts.md — sections: {list relevant section names}
 
-**Language-specific coding guidelines** (pick ONE based on the project's language):
-- Python: monkeymode/guides/PYTHON-CODING-GUIDELINES.md
-- Java: monkeymode/guides/JAVA-CODING-GUIDELINES.md
-- Angular: monkeymode/guides/ANGULAR-CODING-GUIDELINES.md
-- .NET/C#: monkeymode/guides/DOTNET-CODING-GUIDELINES.md
-- React: monkeymode/guides/REACT-CODING-GUIDELINES.md
-- Terraform: monkeymode/guides/TERRAFORM-CODING-GUIDELINES.md
+**Language-specific coding guidelines** (base guide + framework/cloud supplement + platform supplement, per `context.detected_stack`; supplements take precedence):
+- Base guide: {skill_dir}/monkeymode/guides/{LANGUAGE}-CODING-GUIDELINES.md
+- Framework supplement (if applicable): {skill_dir}/monkeymode/guides/{LANGUAGE}-{FRAMEWORK}-SUPPLEMENT.md
+- Cloud provider supplement (if infrastructure story): {skill_dir}/monkeymode/guides/TERRAFORM-{PROVIDER}-SUPPLEMENT.md
+- Platform supplement (only if `detected_stack.platform_supplement_loaded == true`): {skill_dir}/monkeymode/guides/{PLATFORM}-PLATFORM-SUPPLEMENT.md
+
+The orchestrator fills in the actual paths based on `context.detected_stack` in state.json.
 
 ## File Boundaries
 

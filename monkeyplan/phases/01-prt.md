@@ -207,7 +207,7 @@ After generating the draft, present a **one-line-per-section summary table** so 
 | 5 | Functional Requirements | [N requirements: X Must, Y Should, Z Could] |
 | 6 | UI/UX Requirements | [1-line summary of layout and key components] |
 | 7 | Non-Functional Requirements | [1-line summary of perf, security, a11y] |
-| 8 | Design System | [Module variant, N components listed] |
+| 8 | Design System | [Design system, N components listed] |
 | 9 | Success Metrics | [1-line summary of key metrics] |
 | 10 | Risks / Open Questions | [N risks, M open questions] |
 

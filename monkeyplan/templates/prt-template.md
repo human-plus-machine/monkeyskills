@@ -159,8 +159,8 @@ Priority scale:
 
   | Stage | Done When |
   |-------|-----------|
-| PRT | All 10 sections complete; approved by PM and Engineering Lead |
-| UX Ideation | Component inventory complete; user journeys validated by PO; design team signed off |
+  | PRT | All 10 sections complete; approved by PM and Engineering Lead |
+  | UX Ideation | Component inventory complete; user journeys validated by PO; design team signed off |
   | Prototype | Working prototype using the project's design system passes all journey validations |
   | Implementation | All Must and Should requirements implemented; WCAG 2.1 AA verified; UX designer sign-off |
   | Launch | Deployed to production; success metrics baseline established |

@@ -21,7 +21,8 @@ Phase 2c begins when the user confirms they want a risk challenge (set during Ph
 
 Read `context.council_mode` from state.json — this was set during Phase 1 and is reused here.
 
-- **`"parallel"`** → Proceed with Steps 1–3 (parallel Task dispatch)
+- **`"auto"`** → Re-check whether the Task tool is available (as in Phase 1). If yes, treat as parallel (Steps 1–3 below); if not, treat as sequential (and tell the user)
+- **`"parallel"`** (a resolved `auto`) → Proceed with Steps 1–3 (parallel Task dispatch)
 - **`"sequential"`** → Skip to [Sequential Persona Fallback](#sequential-persona-fallback-risk)
 - **`"manual"`** → Skip to [Manual Export](#manual-export-risk)
 
@@ -127,15 +128,15 @@ List 2-4 assumptions this direction is taking for granted that have not been val
 
 ## Step 3: Spawn Risk Challenge Council in Parallel
 
-Ensure `.monkeythink/{topic-name}/council-responses/` exists. Spawn all three subagents simultaneously using the Task tool, identical to Phase 1.
+Ensure `.monkeythink/{feature-name}/council-responses/` exists. Spawn all three subagents simultaneously using the Task tool, identical to Phase 1.
 
 Each subagent's `prompt` = risk challenge brief **plus** an absolute `OUTPUT_PATH`:
 
 | Member | OUTPUT_PATH |
 |--------|-------------|
-| Claude | `{workspace}/.monkeythink/{topic-name}/council-responses/claude-risk.md` |
-| GPT | `{workspace}/.monkeythink/{topic-name}/council-responses/gpt-risk.md` |
-| Gemini | `{workspace}/.monkeythink/{topic-name}/council-responses/gemini-risk.md` |
+| Claude | `{workspace}/.monkeythink/{feature-name}/council-responses/claude-risk.md` |
+| GPT | `{workspace}/.monkeythink/{feature-name}/council-responses/gpt-risk.md` |
+| Gemini | `{workspace}/.monkeythink/{feature-name}/council-responses/gemini-risk.md` |
 
 Append to each prompt:
 
@@ -170,9 +171,9 @@ Task 3: council-gemini subagent
 Follow the same parallel execution rules from Phase 1: do NOT pass a `model` parameter, do NOT set `readonly: true`, verify each response file exists on disk before marking `received`, resume if missing, update state, handle failures gracefully, require ≥2 of 3 verified files.
 
 Expected files (written by subagents):
-- `.monkeythink/{topic-name}/council-responses/claude-risk.md`
-- `.monkeythink/{topic-name}/council-responses/gpt-risk.md`
-- `.monkeythink/{topic-name}/council-responses/gemini-risk.md`
+- `.monkeythink/{feature-name}/council-responses/claude-risk.md`
+- `.monkeythink/{feature-name}/council-responses/gpt-risk.md`
+- `.monkeythink/{feature-name}/council-responses/gemini-risk.md`
 
 ---
 
@@ -180,21 +181,21 @@ Expected files (written by subagents):
 
 Used when `council_mode` is `"sequential"`.
 
-Announce limitation (same as Phase 1). Run the risk challenge brief **3 times in sequence**, each with the persona system prompt from `phases/01-exploration.md` (Analytical / Pragmatic / Expansive) prepended.
+Announce limitation (same as Phase 1). Run the risk challenge brief **3 times in sequence**, each with the persona system prompt from `phases/01-exploration.md` (Claude-style analytical / GPT-style pragmatic / Gemini-style expansive) prepended, saving each pass under its member key.
 
 Save raw responses to:
-- `.monkeythink/{topic-name}/council-responses/analytical-risk.md`
-- `.monkeythink/{topic-name}/council-responses/pragmatic-risk.md`
-- `.monkeythink/{topic-name}/council-responses/expansive-risk.md`
+- `.monkeythink/{feature-name}/council-responses/claude-risk.md`
+- `.monkeythink/{feature-name}/council-responses/gpt-risk.md`
+- `.monkeythink/{feature-name}/council-responses/gemini-risk.md`
 
 Update state:
 ```json
 {
   "council": {
     "risk_responses": {
-      "analytical": "received",
-      "pragmatic": "received",
-      "expansive": "received"
+      "claude": "received",
+      "gpt": "received",
+      "gemini": "received"
     }
   }
 }
@@ -208,14 +209,14 @@ Proceed to Step 4 (Synthesize Risk Findings). The synthesis header will note "se
 
 Used when `council_mode` is `"manual"`.
 
-Generate 3 risk challenge prompt files in `.monkeythink/{topic-name}/council-prompts/`:
-- `04-analytical-risk-prompt.md`
-- `05-pragmatic-risk-prompt.md`
-- `06-expansive-risk-prompt.md`
+Generate 3 risk challenge prompt files in `.monkeythink/{feature-name}/council-prompts/`:
+- `04-claude-risk-prompt.md` (Claude-style, analytical)
+- `05-gpt-risk-prompt.md` (GPT-style, pragmatic)
+- `06-gemini-risk-prompt.md` (Gemini-style, expansive)
 
 Each file = persona system prompt + risk challenge brief.
 
-Pause and instruct the user to run each in a separate tool and paste responses back. Save verbatim to `council-responses/` as `analytical-risk.md`, `pragmatic-risk.md`, `expansive-risk.md`. Then proceed to Step 4.
+Pause and instruct the user to run each in a separate tool and paste responses back. Save verbatim to `council-responses/` as `claude-risk.md`, `gpt-risk.md`, `gemini-risk.md`. Then proceed to Step 4.
 
 ---
 
@@ -236,10 +237,10 @@ Sort risks by a combination of:
 
 ### Risk Challenge Output Format
 
-Save to `.monkeythink/{topic-name}/risk-challenge.md`:
+Save to `.monkeythink/{feature-name}/risk-challenge.md`:
 
 ```markdown
-# Risk Challenge: {topic-name} — {chosen direction}
+# Risk Challenge: {feature-name} — {chosen direction}
 
 **Created:** {ISO8601 date}
 **Council members:** {members that responded}
@@ -307,7 +308,7 @@ Present a concise summary in the conversation:
 
 Top concern (most commonly flagged): {top risk name — one sentence description}
 
-Full details at .monkeythink/{topic-name}/risk-challenge.md
+Full details at .monkeythink/{feature-name}/risk-challenge.md
 
 Would you like to discuss any of these before we write the discovery brief,
 or are you ready to proceed?"

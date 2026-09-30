@@ -57,28 +57,28 @@ Each story must:
 ❌ NEVER make one developer wait for another
 ```
  
-**Example: 3 developers on ACE Memory System**
+**Example: 3 developers on a Document Search feature**
  
 ```
 Story 1: Embeddings Component
-- Files: ace/embeddings/
+- Files: src/embeddings/
 - Defines: EmbeddingsInterface
-- Implements: BedrockEmbeddings (real)
-- Tests: With real Bedrock API
+- Implements: HostedEmbeddings (real)
+- Tests: With the real embeddings API
  
 Story 2: Vector Store Component
-- Files: ace/vector_store/
+- Files: src/vector_store/
 - Defines: VectorStoreInterface
-- Implements: DatabricksVectorStore (real)
+- Implements: HostedVectorStore (real)
 - Tests: With MockEmbeddings
  
 Story 3: Storage Component
-- Files: ace/storage/
+- Files: src/object_storage/
 - Defines: StorageInterface
-- Implements: S3Storage (real)
-- Tests: With mocked S3
+- Implements: ObjectStorage (real)
+- Tests: With a mocked object store
  
-Integration (Phase 6 / orchestrated):
+Integration (Phase 6 / integration story):
 - Wire real components together
 - End-to-end tests
 ```
@@ -116,6 +116,17 @@ class MockEmbeddings(EmbeddingsInterface):
         return [0.1] * 1024  # Mock enables parallel development
 ```
  
+### Step 2b: Security Acceptance Criteria (Every Story)
+
+Every story that handles user input, auth, external calls, or sensitive data MUST include:
+
+- [ ] **Given** unauthenticated request, **When** endpoint called, **Then** 401
+- [ ] **Given** authenticated user A, **When** accessing user B's resource, **Then** 403
+- [ ] **Given** invalid/malformed input, **When** submitted, **Then** 422 with no side effects
+- [ ] **Given** operation completes, **When** logs/errors emitted, **Then** no secrets/PII in output
+
+Reference the Authorization Matrix from `1b-contracts.md` for story-specific cases.
+
 ### Step 3: Write Complete Story Details
  
 Use this template for each story:
@@ -136,7 +147,7 @@ So that [business value].
  
 ### Technical Context
 - **Affected modules:** [module] (new)
-- **Design reference:** design.md "[Section]" section
+- **Design reference:** `design/1a-discovery.md`, `1b-contracts.md`, or `1c-operations.md` "[Section]" section
 - **Key files to create:**
   - `src/[module]/__init__.py`
   - `src/[module]/[component].py` (main implementation)
@@ -182,10 +193,10 @@ from other_module.mocks import MockOther
 - [ ] All tests pass independently (no external dependencies)
  
 ### Implementation Details
-[Paste relevant sections from design.md - function signatures, data models, error handling]
+[Paste relevant sections from the design docs (`design/1a-discovery.md`, `1b-contracts.md`, `1c-operations.md`) - function signatures, data models, error handling]
  
 ### Out of Scope
-- Integration with other components (Phase 6 orchestrated)
+- Integration with other components (Phase 6 integration story)
 - [Other exclusions to prevent scope creep]
  
 ### Notes for Developer
@@ -204,11 +215,10 @@ from other_module.mocks import MockOther
 - Story 2: [Component B]
 - Story 3: [Component C]
 
-All stories start Day 1. No waiting.
+All component stories start Day 1. No waiting.
 
-**Integration (Phase 6 / orchestrated)**
-- Wire components together
-- End-to-end tests
+**After all component stories verified:**
+- Story N: Integration — Wire components together, e2e tests (its own code spec, run through the same implementer pipeline)
 
 **Future: Advanced Features** (if needed)
 - Story X: [Feature A]
@@ -217,7 +227,118 @@ All stories start Day 1. No waiting.
  
 **Key Rule:** If you see arrows (→) between stories, YOU'RE DOING IT WRONG!
  
-### Step 5: Validate Quality
+### Step 5: Shared File Conflict Analysis
+
+> **Why at story creation time?** File conflicts are currently detected at Phase 4 batching time — but the root cause is usually story decomposition. Catching conflicts here lets you restructure stories *before* code specs are written, saving significant rework.
+
+After listing all files per story (Step 3), build a conflict matrix:
+
+```
+1. Collect all files from every story's "Key files to create" and "Key files to modify"
+2. For each file, list which stories touch it
+3. Flag any file touched by 2+ stories as a SHARED FILE CONFLICT
+```
+
+**Conflict Matrix Example:**
+
+| File | Story 1 | Story 2 | Story 3 | Conflict? |
+|------|---------|---------|---------|-----------|
+| `src/embeddings/service.py` | CREATE | — | — | No |
+| `src/vector_store/service.py` | — | CREATE | — | No |
+| `src/app.py` (router registration) | MODIFY | MODIFY | MODIFY | **YES** |
+| `src/config.py` | — | MODIFY | MODIFY | **YES** |
+| `src/__init__.py` | MODIFY | MODIFY | — | **YES** |
+
+**When conflicts are found, try to eliminate them by restructuring:**
+
+1. **Extract shared file changes into the integration story** — If stories only need to add a line to `app.py` or `__init__.py`, move those changes out of individual stories and into the integration story (see Step 6). The individual stories define their components; integration wires them in.
+
+2. **Split a conflicting story** — If two stories both heavily modify the same module, the module may need to be split into two independent modules, each owned by one story.
+
+3. **Merge conflicting stories** — If two stories share so many files that separating them is artificial, merge them into one story. Fewer, larger stories are better than many conflicting ones.
+
+4. **Accept and document the conflict** — Some shared files (e.g., `package.json`, `requirements.txt`) are unavoidable. Document these as *known shared files* so Phase 4 can batch accordingly.
+
+**Output:** Add a "Shared File Analysis" section to the user stories document:
+
+```markdown
+## Shared File Analysis
+
+**Resolved conflicts:**
+- `src/app.py` — Router registrations moved to integration story
+- `src/__init__.py` — Exports moved to integration story
+
+**Accepted conflicts (Phase 4 will batch sequentially):**
+- `requirements.txt` — Stories 1 and 3 both add dependencies
+
+**Result:** Stories 1, 2, 3 can run in the same parallel batch.
+  Integration story runs after all stories complete.
+```
+
+### Step 6: Generate Integration Story
+
+> **Why an explicit story?** Phase 6 integration work — merging shared files, wiring DI, writing e2e tests — needs a code spec and acceptance criteria like any other work. For features with 3+ stories or complex cross-story wiring, integration is complex enough to warrant its own tracked story with clear acceptance criteria.
+
+**When to generate an integration story:**
+- **Always generate** when there are 2+ component stories
+- **Skip** for single-story features (nothing to integrate)
+
+**The integration story is always the LAST story — it runs after all component stories are verified in Phase 5.**
+
+```markdown
+## Story [N]: Integration — Wire Components Together
+
+**Repository:** [repo-name]
+**Type:** Integration
+**Priority:** High
+**Size:** S (1-2 days) — primarily wiring, not new logic
+**Dependencies:** All other stories must be verified (Phase 5) before this runs
+
+### Description
+As a developer,
+I want all independently-built components wired together into a working feature,
+So that the feature works end-to-end with real implementations (not mocks).
+
+### Technical Context
+- **Affected files:** [shared files identified in Step 5 conflict analysis]
+- **Design reference:** `design/1a-discovery.md`, `1b-contracts.md`, `1c-operations.md` — all sections
+- **Key files to modify:**
+  - [Shared files from conflict analysis: app.py, __init__.py, config.py, etc.]
+  - [DI/service registration files]
+  - [Route registration files]
+- **Key files to create:**
+  - `tests/integration/test_[feature]_e2e.py` (end-to-end tests)
+
+### Integration Checklist
+- [ ] Shared file merges (from conflict analysis):
+  - [ ] [List each shared file and what gets merged]
+- [ ] Cross-story wiring:
+  - [ ] [Story A interface → Story B consumer]
+  - [ ] [Story B interface → Story C consumer]
+- [ ] Dependency injection / service registration
+- [ ] Configuration entries (env vars, config files)
+- [ ] Route/endpoint registration
+- [ ] Auth middleware / guards registered for all new routes
+- [ ] Tenant / user context propagated across story boundaries
+- [ ] CORS and security headers applied at integration boundary
+- [ ] End-to-end authz test: user A cannot access user B's data through integrated flow
+
+### Acceptance Criteria
+- [ ] All component stories' exports are accessible from the feature's public API
+- [ ] Real implementations replace all mocks at integration points
+- [ ] End-to-end happy path test passes with real components
+- [ ] End-to-end error propagation test passes across story boundaries
+- [ ] No regressions — all existing unit tests still pass
+- [ ] Linter and type checker clean across the full project
+
+### Out of Scope
+- New feature logic (all logic lives in component stories)
+- Changes to component internals
+```
+
+**State:** The integration story is added to `state.json` like any other story, with `"type": "integration"` to distinguish it. It is **excluded from Phase 4 batching**. Phase 3 writes it its own code spec (`story-N-integration-spec.md`), and it runs in Phase 6 (tests first, then implementation) — only after all component stories reach `verified` status.
+
+### Step 7: Validate Quality
  
 **True Parallelization Check:**
 ```
@@ -227,9 +348,11 @@ All stories start Day 1. No waiting.
 ✅ All integration contracts defined upfront
 ✅ Each story testable with mocks
 ✅ Integration handled in Phase 6
+✅ Shared file conflict analysis completed (Step 5)
+✅ Conflicts resolved or documented as accepted
  
 Test: Can all stories run in parallel without file conflicts?
-If NO → redesign stories!
+If NO → go back to Step 5 and restructure!
 ```
  
 **Completeness Check:**
@@ -280,7 +403,6 @@ If NO → redesign stories!
 Before finalizing, verify:
  
 ### Discovery
-- [ ] Asked: "What's your timeline?"
 - [ ] Asked: "Which components communicate?"
 - [ ] Created one story per independent component
  
@@ -290,6 +412,10 @@ Before finalizing, verify:
 - [ ] All contracts defined upfront
 - [ ] Mocks provided for testing
 - [ ] Test: All N devs can start Day 1
+- [ ] Shared file conflict analysis completed (Step 5)
+- [ ] Conflicts resolved by restructuring or documented as accepted
+- [ ] Integration story generated when there are 2+ component stories (Step 6)
+- [ ] Every story that handles input/auth/external calls/sensitive data has security acceptance criteria (Step 2b)
  
 ### Story Quality
 - [ ] All required sections present
@@ -298,7 +424,7 @@ Before finalizing, verify:
 - [ ] Patterns referenced
 - [ ] Out of scope defined
 - [ ] Interfaces with complete types
-- [ ] Integration timeline specified
+- [ ] Integration story specified (shared files, wiring, e2e tests)
  
 ## Anti-Patterns to Avoid
  
@@ -340,7 +466,7 @@ Story 2: VectorStore (uses MockEmbeddings)
 "Implement favorites API"
 - Files: src/favorites/controller.ts (create)
 - Pattern: Follow src/users/controller.ts
-- Design: See design.md "API Contracts"
+- Design: See design/1b-contracts.md "API Contracts"
 ```
  
 ---
@@ -391,7 +517,8 @@ This enables parallel development without merge conflicts - each developer only 
         "rework_attempts": 0,
         "rework_summary": null,
         "escalated_issues": [],
-        "last_checked_at": null
+        "last_checked_at": null,
+        "test_corrections": []
       },
       "last_updated": "2024-01-15T10:30:00Z"
     },
@@ -409,7 +536,8 @@ This enables parallel development without merge conflicts - each developer only 
         "rework_attempts": 0,
         "rework_summary": null,
         "escalated_issues": [],
-        "last_checked_at": null
+        "last_checked_at": null,
+        "test_corrections": []
       },
       "last_updated": "2024-01-15T10:30:00Z"
     },
@@ -427,7 +555,28 @@ This enables parallel development without merge conflicts - each developer only 
         "rework_attempts": 0,
         "rework_summary": null,
         "escalated_issues": [],
-        "last_checked_at": null
+        "last_checked_at": null,
+        "test_corrections": []
+      },
+      "last_updated": "2024-01-15T10:30:00Z"
+    },
+    "story-4-integration": {
+      "title": "Integration — Wire Components Together",
+      "type": "integration",
+      "status": "not_started",
+      "code_spec_path": null,
+      "assigned_to": null,
+      "current_task": null,
+      "files_to_create": ["tests/integration/test_feature_e2e.py"],
+      "files_to_modify": ["src/__init__.py", "src/app.py", "src/config.py"],
+      "blocked_by_rework": null,
+      "verification": {
+        "result": "pending",
+        "rework_attempts": 0,
+        "rework_summary": null,
+        "escalated_issues": [],
+        "last_checked_at": null,
+        "test_corrections": []
       },
       "last_updated": "2024-01-15T10:30:00Z"
     }
@@ -442,7 +591,8 @@ This enables parallel development without merge conflicts - each developer only 
 **Status values:**
 - `not_started` - Story created, no work begun
 - `code_spec` - Code spec is being written (Phase 3)
-- `implementation` - Implementation in progress (Phase 4)
+- `tests_written` - Red tests written and confirmed failing by the test-writer (Phase 4, step 1)
+- `implementation` - Reserved; Phase 4 does not set this status (stories go `tests_written` → `implementation_complete`)
 - `implementation_complete` - Implementation finished, ready for verification (Phase 5)
 - `verified` - Passed verification (Phase 5)
 - `verification_failed` - Failed verification, needs rework (Phase 5)
@@ -460,9 +610,11 @@ This enables parallel development without merge conflicts - each developer only 
 - All stories fully testable with mocks
 - Integration is straightforward (just wire real implementations)
 
+Critique is optional — only if the user asks; see `{skill_dir}/monkeymode/guides/PHASE-CRITIQUE-LOOP.md`.
+
 ## Handoff to Phase 2B
 
-After the user approves the user stories, immediately proceed to Phase 2B (Acceptance Checklist) before starting Phase 3 (Code Spec).
+After the user approves the user stories, offer to continue to Phase 2B (Acceptance Checklist) before starting Phase 3 (Code Spec). Per the never-auto-advance rule, wait for the user's confirmation before starting it.
 
 Phase 2B uses the approved user stories and design docs to draft the acceptance checklist — the concrete list of curl commands, CLI checks, and UI steps that will be used in Phase 7 to confirm the feature is fully working.
 

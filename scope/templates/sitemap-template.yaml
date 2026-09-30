@@ -1,0 +1,112 @@
+# SiteMap — ownership registry (orgs -> teams -> repos -> capabilities + aliases)
+#
+# Authoritative source for @scope (and @monkeyplan). Place at workspace root as `sitemap.yaml`.
+# Every name, host, and repo below is a PLACEHOLDER. Replace them with your own.
+#
+# Cascade if absent: catalog-info.yaml (Path B) -> interactive capture (Path C).
+# Prefer UNKNOWN over a wrong owner. Do not infer ownership from AI-doc density.
+#
+# Keep this file curated and fresh — a stale SiteMap recreates the "wrong org" problem.
+#
+# Back-compat: v1 files (flat `teams[]`, no `orgs`, `capabilities[].owner` instead of
+# `owner_team`) are still readable. Treat a v1 file as a single unnamed org, warn once in
+# Phase 0 that multi-org scoping needs an `orgs` block, and offer to upgrade it in place.
+
+version: 2
+
+# Optional defaults for @scope Phase 0 (still confirmed per feature).
+artifact_defaults:
+  type: git                # git | wiki | workspace | other
+  path: .scope/            # working path or wiki space hint
+
+# Organizations (business units or product groups). Multi-org features scope per org.
+orgs:
+  - name: your-org-platform
+    display_name: Your Org Platform
+    description: Shared data and platform services
+  - name: your-org-web
+    display_name: Your Org Web
+    description: Customer-facing UI / account experience
+  - name: your-org-billing
+    display_name: Your Org Billing
+    description: Billing / account management services
+
+teams:
+  - name: platform-team
+    org: your-org-platform             # must match orgs[].name
+    members: 3                         # 3 = MonkeyMode baseline
+    data_expertise: [relational, streaming]
+    repos:
+      - name: platform-data-service
+        url: https://git.example.com/your-org/platform-data-service.git
+        # Capabilities other teams consume — used for ownership match (not AI docs).
+        provides: [data-objects, audience-build]
+        # Terminology aliases so PRD wording != exact module names still match.
+        aliases: [data object, data-objects, platform objects]
+    contacts:
+      product_owner: ""
+      tech_lead: ""
+
+  - name: web-team
+    org: your-org-web
+    members: 4
+    data_expertise: [none]
+    repos:
+      - name: web-ui
+        url: https://git.example.com/your-org/web-ui.git
+        provides: [web-ui, account-ux]
+        aliases: [web UI, customer UI, account experience]
+    contacts:
+      product_owner: ""
+      tech_lead: ""
+
+  - name: billing-team
+    org: your-org-billing
+    members: 3
+    data_expertise: [relational, pii]
+    repos:
+      - name: billing-service
+        url: https://git.example.com/your-org/billing-service.git
+        provides: [billing, invoicing, split-billing]
+        # Example: PRD says "bill split"; the billing module may use different product language.
+        aliases: [bill split, split billing, credit split]
+    contacts:
+      product_owner: ""
+      tech_lead: ""
+
+# Fast capability -> owner index (optional; inferred from teams[].repos[].provides if omitted).
+capabilities:
+  data-objects:
+    owner_team: platform-team
+    org: your-org-platform
+    consumed_by: [web-team]
+  web-ui:
+    owner_team: web-team
+    org: your-org-web
+    consumed_by: []
+  billing:
+    owner_team: billing-team
+    org: your-org-billing
+    consumed_by: [web-team, platform-team]
+
+# Org-level aliases for discovery (PRD language -> org).
+aliases:
+  - terms: [platform, data platform, shared services]
+    maps_to: { org: your-org-platform }
+  - terms: [web, customer account, account UI]
+    maps_to: { org: your-org-web }
+  - terms: [billing, split billing, invoice]
+    maps_to: { org: your-org-billing }
+
+# External vendors/SaaS already in use.
+external_systems:
+  - name: ""
+    category: ""                       # saas | payments | compliance | public-api | data
+    used_by: []                        # team names
+    notes: ""
+
+# Optional: who maintains this registry (staleness prevention).
+registry_owner:
+  team: ""
+  review_cadence: quarterly
+  last_reviewed: ""
