@@ -8,7 +8,7 @@ generated-types sync rule, a migration policy, or infrastructure-as-code review
 rules).
 
 No profiles ship by default. The skills fall back to the base review plus the target
-repo's own `AGENTS.md` / `CLAUDE.md` / `.cursor/rules/`.
+repo's own `CLAUDE.md` / `AGENTS.md` / `.windsurfrules` / `.cursor/rules/`.
 
 ## Adding a profile
 

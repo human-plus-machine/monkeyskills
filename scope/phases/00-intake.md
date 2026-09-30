@@ -79,7 +79,7 @@ If present and valid:
 
 If no `sitemap.yaml`, scan for per-repo `catalog-info.yaml`:
 - Derive a working SiteMap: `spec.owner` → team, metadata → repo.
-- **Normalize:** treat every catalog equally — do **not** prefer repos that also have `.cursor/rules`, `AGENTS.md`, or dense AI docs.
+- **Normalize:** treat every catalog equally — do **not** prefer repos that also have `CLAUDE.md`, `AGENTS.md`, `.windsurfrules`, `.cursor/rules`, or dense AI docs.
 - Set `context.sitemap_source: "catalog-info.yaml"`.
 - Set `context.pending_sitemap_write: true` and hold the derived orgs/teams/repos in memory — the actual write happens in "Persist the SiteMap" below, once orgs are confirmed.
 
@@ -137,7 +137,7 @@ Without asking, scan the workspace **for stack signals only**:
 - Platform markers: `PLATFORM.md`, `monkeymode.config.yaml`, `catalog-info.yaml`.
 
 **Anti-bias rules (mandatory):**
-- Presence of `.cursor/`, `AGENTS.md`, rich README, or AI-assistant rules **must not** increase a repo's score for ownership or inclusion.
+- Presence of `.cursor/`, `CLAUDE.md`, `AGENTS.md`, `.windsurfrules`, rich README, or AI-assistant rules **must not** increase a repo's score for ownership or inclusion.
 - When multiple candidate repos match a capability, prefer **SiteMap `provides` / `aliases`**, then `catalog-info` owner — never "most documented."
 - If only one local repo is checked out, do **not** assume it owns the whole feature; keep other SiteMap orgs as first-class.
 

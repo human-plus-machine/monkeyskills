@@ -489,8 +489,8 @@ After generating code, I automatically review for:
 I provide specific refactoring suggestions with before/after examples.
 ```
 
-### Cursor and other editors
-Add to your editor's rules file (e.g. `.cursorrules`, `AGENTS.md`, or `CLAUDE.md`):
+### Cursor, Windsurf and other editors
+Add to your editor's rules file (e.g. `.cursorrules`, `.windsurfrules`, `AGENTS.md`, or `CLAUDE.md`):
 ```
 # Code Simplicity Standards
 - Functions under 50 lines

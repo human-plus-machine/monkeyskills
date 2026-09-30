@@ -22,7 +22,7 @@ This phase is **Eng + Product** together. Eng validates repo/team claims against
 ## Discovery rules (mandatory)
 
 1. **Registry first.** Resolve owners via SiteMap `orgs` → `teams` → `repos[].provides` → `capabilities` → `aliases`. Exact PRD wording is **not** required (e.g. PRD "bill split" may map to a billing alias).
-2. **No AI-doc bias.** Never prefer a repo because it has `.cursor/rules`, `AGENTS.md`, or denser docs.
+2. **No AI-doc bias.** Never prefer a repo because it has `CLAUDE.md`, `AGENTS.md`, `.windsurfrules`, `.cursor/rules`, or denser docs.
 3. **Multi-org default.** If ≥2 orgs are in `context.orgs_in_scope`, produce **§3.5 Per-org scopes** — do not collapse into one org.
 4. **UNKNOWN > guess.** Missing owner → `UNKNOWN — confirm with PM/Eng` + §4 question.
 5. **Impacted teams for PMs.** Always emit §3.4 so a PM who does not know repo ownership still sees who must join planning.
