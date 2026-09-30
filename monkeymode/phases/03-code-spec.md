@@ -13,7 +13,7 @@ Orchestrate the creation of code specs for all user stories before Phase 4 begin
 
 Phase 3 runs as a **two-step pipeline across all stories**: subagents write specs in parallel, then the orchestrator presents each written spec to the user sequentially for approval.
 
-The main agent acts as the **orchestrator** — it never writes specs directly. It spawns `code-spec-writer` subagents via the Task tool and manages the review and state-update flow.
+The main agent acts as the **orchestrator** — it never writes specs directly. It spawns `code-spec-writer` subagents via your tool's subagent mechanism (e.g. the Task / subagent tool) and manages the review and state-update flow.
 
 ### Architecture Overview
 
@@ -71,7 +71,7 @@ Use the prompt template below.
 
 #### Step O3: Spawn code-spec-writer Subagents (Parallel)
 
-Launch one `code-spec-writer` subagent per story using the Task tool (`subagent_type: "code-spec-writer"`). Each subagent writes its spec directly to the path provided in the prompt.
+Launch one `code-spec-writer` subagent per story using your tool's subagent mechanism (e.g. the Task / subagent tool with `subagent_type: "code-spec-writer"`). Each subagent writes its spec directly to the path provided in the prompt.
 
 **CRITICAL RULES:**
 - Launch all subagents in a **single message** (parallel tool calls)

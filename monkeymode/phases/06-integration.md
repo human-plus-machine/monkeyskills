@@ -151,7 +151,7 @@ If any tests fail or linter errors appear, fix them before proceeding to Step I7
 
 > **Why a separate verification?** Phase 5 verified each story in isolation — but many real bugs only appear when stories are wired together: contract mismatches, missing DI registrations, incorrect import paths, event ordering issues, N+1 queries at integration points. A structured verification of the integrated result catches what per-story verification cannot.
 
-Spawn a `verifier` subagent via the Task tool (`subagent_type: "verifier"`) with a **cross-story verification scope**. Unlike Phase 5 (which verifies one story at a time), this verification checks the feature as a whole.
+Spawn a `verifier` subagent via your tool's subagent mechanism (e.g. the Task / subagent tool with `subagent_type: "verifier"`) with a **cross-story verification scope**. Unlike Phase 5 (which verifies one story at a time), this verification checks the feature as a whole.
 
 **Post-integration verifier prompt:**
 

@@ -48,7 +48,7 @@ Orchestrator (@prototype)
 - State management (state.json reads/writes)
 - Chrome DevTools MCP calls (Phase 0b page capture, clone/hybrid mode only)
 - Constructing build briefs for subagents (including `SOURCE_CAPTURE` field when applicable)
-- Dispatching subagents in parallel via the Task tool
+- Dispatching subagents in parallel via your tool's subagent mechanism (e.g. Task / subagent tool)
 - Collecting and parsing subagent results
 - Presenting links and managing the iteration loop
 
@@ -340,7 +340,7 @@ The full ordering (feature name → state → MCP probe → branch on new vs res
 - ✅ Use workspace-relative paths for all artifacts
 - ✅ Resolve design tokens once and reuse across all variant HTMLs
 - ✅ Delegate all HTML generation to `prototype-builder` subagents — never write HTML directly
-- ✅ Spawn all pending variants in parallel in a single Task tool call (capped at 5 per batch)
+- ✅ Spawn all pending variants in parallel in a single batch of parallel subagent calls (capped at 5 per batch)
 - ✅ Parse the `PROTOTYPE_RESULT` block from each subagent before updating state
 - ✅ Present clickable `file://` links (from subagent `file_url` results) after all subagents complete
 - ✅ Run the Chrome DevTools MCP availability check when (and only when) the PM picks clone/hybrid mode or invokes with a URL

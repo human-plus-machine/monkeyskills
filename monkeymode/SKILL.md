@@ -559,6 +559,8 @@ Phase 7: Acceptance       →  agent runs automatable checks; human confirms UI 
 
 **The orchestrator MUST spawn `code-spec-writer` subagents — it must NOT write code specs itself (except Step O8 failure fallback).** Each subagent investigates the codebase, **writes the spec file to disk** at the path in the prompt, and returns structured JSON. The orchestrator **verifies files exist**, resolves questions, presents specs for approval, and updates `state.json`.
 
+**If subagents are unavailable:** if your tool has no subagent mechanism (Task / subagent tool), the orchestrator performs each subagent role itself, one story at a time, in the current session, following the matching instructions in `subagents/` and writing the same output files. Skip parallel batching; all other gates and state updates are unchanged.
+
 Phase 3 runs as a **two-step pipeline across all stories**:
 
 Key responsibilities:

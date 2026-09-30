@@ -392,7 +392,7 @@ Generating {N} prototype(s) now..."
 
 ## Step B: Spawn prototype-builder Subagents in Parallel
 
-The orchestrator does **not** write HTML directly. Instead, it constructs a build brief for each pending variant and spawns one `prototype-builder` subagent per variant — all in parallel using the Task tool.
+The orchestrator does **not** write HTML directly. Instead, it constructs a build brief for each pending variant and spawns one `prototype-builder` subagent per variant — all in parallel using your tool's subagent mechanism (e.g. Task / subagent tool).
 
 ### B1: Construct the absolute output path
 
@@ -407,10 +407,10 @@ Create the `prototypes/{feature-name}/` directory before dispatching (the subage
 ### B2: Construct the browser open command
 
 ```bash
-open -a "Google Chrome" "{absolute_output_path}"
+open "{absolute_output_path}"        # macOS (use `xdg-open` on Linux, `start ""` on Windows)
 ```
 
-Include this verbatim in the brief. The subagent handles OS fallback if Chrome is unavailable.
+Pick the command for the current OS (`open` / `xdg-open` / `start`) and include it verbatim in the brief. The subagent handles fallback if the default browser cannot be opened.
 
 ### B3: Dispatch all pending variants in parallel
 
@@ -448,7 +448,7 @@ SOURCE_CAPTURE: {SOURCE_CAPTURE object built in Step A-end-2, or null}
   # are canonical.
 
 OUTPUT_PATH: {absolute_output_path}
-OPEN_COMMAND: open -a "Google Chrome" "{absolute_output_path}"
+OPEN_COMMAND: open "{absolute_output_path}"   # or xdg-open (Linux) / start "" (Windows)
 ```
 
 **Important dispatch rules:**

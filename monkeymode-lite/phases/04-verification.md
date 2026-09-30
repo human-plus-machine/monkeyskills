@@ -61,7 +61,7 @@ For each task in `code-spec.md`:
 
 ## Mode B: verifier Subagent
 
-Spawn one `verifier` subagent via the Task tool (`subagent_type: "verifier"`). Provide:
+Spawn one `verifier` subagent via your tool's subagent mechanism (e.g. the Task / subagent tool with `subagent_type: "verifier"`). Provide:
 
 - Code spec path: `.monkeymode/{feature-name}/code-spec.md`
 - Design doc path: `.monkeymode/{feature-name}/design.md`

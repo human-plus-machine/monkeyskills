@@ -31,7 +31,7 @@ For each story in state.stories:
 
 ### Step V2: Spawn Verifier Subagents
 
-For each eligible story, spawn a `verifier` subagent (`subagent_type: "verifier"` via the Task tool).
+For each eligible story, spawn a `verifier` subagent (`subagent_type: "verifier"` via your tool's subagent mechanism (e.g. the Task / subagent tool with the named subagent)).
 
 **How to build the verifier prompt:**
 1. Include story-specific context (see **Verifier Prompt Template** below) in the subagent's `prompt` parameter and launch all verifiers for a batch in a **single message** (parallel tool calls)
@@ -40,7 +40,7 @@ For each eligible story, spawn a `verifier` subagent (`subagent_type: "verifier"
 - Verifier subagents are **read-only** — they do NOT modify any files
 - Never exceed 10 concurrent subagents
 - Each verifier gets a complete, self-contained prompt
-- **Do NOT pass a `model` parameter** when spawning subagents via the Task tool. Omit it entirely so subagents inherit the parent conversation's model. Do not select a fast/cheap model for verification or rework (if your tool supports selecting one); otherwise omit the model. These require the full-capability model.
+- **Do NOT pass a `model` parameter** when spawning subagents via your tool's subagent mechanism (e.g. the Task / subagent tool). Omit it entirely so subagents inherit the parent conversation's model. Do not select a fast/cheap model for verification or rework (if your tool supports selecting one); otherwise omit the model. These require the full-capability model.
 
 ### Step V3: Collect Verification Results
 
