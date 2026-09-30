@@ -1,0 +1,49 @@
+{
+  "feature_name": "{feature-name}",
+  "current_phase": "code_spec",
+  "phase_status": {
+    "design": "completed",
+    "code_spec": "not_started",
+    "implementation": "not_started",
+    "verification": "not_started"
+  },
+  "artifacts": {
+    "design_doc": ".monkeymode/{feature-name}/design.md",
+    "code_spec": ".monkeymode/{feature-name}/code-spec.md",
+    "qa_log": ".monkeymode/{feature-name}/qa-log.md"
+  },
+  "stories": {
+    "story-1-{feature-name}": {
+      "title": "{feature-name}",
+      "status": "not_started",
+      "code_spec_path": ".monkeymode/{feature-name}/code-spec.md",
+      "files_to_create": [],
+      "files_to_modify": [],
+      "verification": {
+        "result": "pending",
+        "rework_attempts": 0,
+        "verified_at": null
+      },
+      "last_updated": "{ISO8601 timestamp}"
+    }
+  },
+  "context": {
+    "workflow_tier": "lite",
+    "save_qa_log": true,
+    "explore_handoff": true,
+    "explore_path": ".explore/{feature-name}/",
+    "detected_stack": {
+      "language": null,
+      "framework": null,
+      "framework_version": null,
+      "build_tool": null,
+      "test_framework": null,
+      "cloud_provider": null,
+      "platform": null,
+      "platform_version": null,
+      "platform_supplement_loaded": false,
+      "platform_supplement_warnings": []
+    }
+  },
+  "last_updated": "{ISO8601 timestamp}"
+}
