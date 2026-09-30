@@ -22,11 +22,31 @@ MonkeySkills is an open-source set of structured agent skills that take a produc
 npx github:human-plus-machine/monkeyskills
 ```
 
-On a TTY, the installer prompts for Claude only, Cursor only, or both (default). For CI or piped input, use `--both`, `--claude-only`, or `--cursor-only`, or set `MONKEYSKILLS_TARGETS` to `claude`, `cursor`, or `both`. Use `--dry-run` to preview without writing files. Cursor Task subagents are written to `~/.cursor/agents/`; Claude Code uses `~/.claude/agents/`. Restart Claude Code or Cursor after installing. Skills show up in the `/` command list.
+On a TTY, the installer prompts for Claude only, Cursor only, both (default), all tools, or a comma list. For CI or piped input use flags or environment:
+
+| Flag | Installs to |
+| --- | --- |
+| `--claude-only` | Claude Code: `~/.claude/skills`, `~/.claude/agents` |
+| `--cursor-only` | Cursor: `~/.cursor/skills`, `~/.cursor/agents` |
+| `--windsurf-only` | Windsurf: `~/.codeium/windsurf/skills` (skills only) |
+| `--codex-only` | Codex CLI: `~/.agents/skills` (skills only) |
+| `--gemini-only` | Gemini CLI: `~/.gemini/skills` (skills only) |
+| `--copilot-only` | GitHub Copilot: `~/.copilot/skills` (skills only) |
+| `--both` | Claude Code and Cursor |
+| `--all` | Every target above |
+| `--targets=claude,windsurf,...` | Any comma list (also `MONKEYSKILLS_TARGETS=...`, which accepts `both` and `all`) |
+
+Use `--dry-run` to preview without writing files. Restart your tool after installing. Skills show up in the `/` command list.
+
+Tools without documented subagent support get skills only; subagent-based phases then fall back to inline, sequential execution.
+
+### Model handling
+
+Source subagents in `subagents/` use Cursor-style model ids (`claude-4.6-sonnet`, `gpt-5.5`, `gemini-3.1-pro`). Claude Code accepts only aliases, full Claude model IDs, or `inherit`, so the installer rewrites just the `model:` line in the copy written to `~/.claude/agents`: `claude-*sonnet*` becomes `sonnet`, `claude-*opus*` becomes `opus`, `claude-*haiku*` becomes `haiku`, and anything else (GPT, Gemini, unknown) becomes `inherit`. Non-Claude members such as `council-gpt` and `council-gemini` therefore run on your session model in Claude Code, and the installer prints a note when this happens. Cursor copies keep the original values, and repo sources are never modified.
 
 ## Requirements
 
-Node.js 18+ · Claude Code or Cursor
+Node.js 18+ · Claude Code, Cursor, Windsurf, Codex CLI, Gemini CLI, or GitHub Copilot
 
 ## Available Skills
 
