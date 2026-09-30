@@ -272,8 +272,8 @@ The PRT output is designed to serve three types of teams:
 
 | Cohort | Description | How the PRT Serves Them |
 |--------|-------------|------------------------|
-| **Legacy teams** | Not using Cursor; consume PRT as a standard document | The `.monkeyplan/{feature-name}/prt.md` file is standalone Markdown — readable in any editor, Confluence, GitHub, or wiki. No Cursor-specific syntax or tooling required. |
-| **AI-assisted teams** | Using Cursor + MonkeyPlan for the full workflow | Full Phase 0 → 1 → 2 → 3 → MonkeyMode handoff pipeline with state tracking and session continuity. |
+| **Legacy teams** | Not using an AI IDE; consume PRT as a standard document | The `.monkeyplan/{feature-name}/prt.md` file is standalone Markdown — readable in any editor, Confluence, GitHub, or wiki. No IDE-specific syntax or tooling required. |
+| **AI-assisted teams** | Using an AI IDE (Claude Code, Cursor, Windsurf, etc.) + MonkeyPlan for the full workflow | Full Phase 0 → 1 → 2 → 3 → MonkeyMode handoff pipeline with state tracking and session continuity. |
 | **Cross-cutting teams** | Working across both environments | Import existing PRTs/epics via Phase 0 Path B; export the PRT and epic breakdown as standalone Markdown for offline teams; use MonkeyMode handoff for AI-assisted engineering. |
 
 **After all phases complete, offer export options:**
@@ -286,7 +286,7 @@ The PRT output is designed to serve three types of teams:
 3. Export all artifacts — Copy prt.md, ux-ideation.md (if generated), and epic-breakdown.md (if generated) to project root"
 ```
 
-The exported files are plain Markdown with no Cursor-specific dependencies — they work in Confluence, GitHub wikis, Jira, email, or any Markdown renderer.
+The exported files are plain Markdown with no AI-IDE-specific dependencies — they work in Confluence, GitHub wikis, Jira, email, or any Markdown renderer.
 
 **Importing existing PRTs/epics:** Phase 0 Path B accepts any written requirements material (PRDs, PRTs, capability docs, epic descriptions, tech specs, meeting notes). The agent extracts structured data and maps it to PRT sections, bridging the gap between legacy artifacts and the structured PRT format.
 

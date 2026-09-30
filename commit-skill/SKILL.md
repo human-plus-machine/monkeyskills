@@ -118,7 +118,7 @@ When changes span multiple stories:
 For each commit:
 1. **Show the user** what will be committed (files, message) and ask for confirmation
 2. Stage the relevant files with `git add`
-3. Commit with the generated message, appending a `Made-with: MonkeyMode` trailer on a blank-line-separated line at the end of the message body — run outside the sandbox with `required_permissions: ["all"]` since pre-commit hooks require full system access
+3. Commit with the generated message, appending a `Made-with: MonkeyMode` trailer on a blank-line-separated line at the end of the message body — if your tool sandboxes shell commands, request full/unsandboxed permissions (network, repository, filesystem access) for this command, since pre-commit hooks require full system access
  
    Example commit message format:
    ```
