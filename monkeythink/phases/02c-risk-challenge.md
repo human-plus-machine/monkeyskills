@@ -21,7 +21,7 @@ Phase 2c begins when the user confirms they want a risk challenge (set during Ph
 
 Read `context.council_mode` from state.json — this was set during Phase 1 and is reused here.
 
-- **`"auto"`** → Re-check whether the Task tool is available (as in Phase 1). If yes, treat as parallel (Steps 1–3 below); if not, treat as sequential (and tell the user)
+- **`"auto"`** → Re-check whether subagents (a Task / subagent tool) are available (as in Phase 1). If yes, treat as parallel (Steps 1–3 below); if not, treat as sequential (and tell the user)
 - **`"parallel"`** (a resolved `auto`) → Proceed with Steps 1–3 (parallel subagent dispatch)
 - **`"sequential"`** → Skip to [Sequential Persona Fallback](#sequential-persona-fallback-risk)
 - **`"manual"`** → Skip to [Manual Export](#manual-export-risk)

@@ -406,7 +406,6 @@ Before marking Phase 2b complete:
   },
   "artifacts": {
     "design_md": "{workspace}/DESIGN.md",
-    "ui_concept_canvas": "~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx",
     "ui_concept_html": ".monkeythink/{feature-name}/ui-concept.html",
     "ui_concept_canvas": "~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx",
     "ui_concept_canvas_reference": ".monkeythink/{feature-name}/ui-concept.canvas.tsx"
