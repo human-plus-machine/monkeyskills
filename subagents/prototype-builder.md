@@ -70,7 +70,7 @@ NOTE: In every design system, use the DESIGN_TOKENS values directly — they are
 See the HTML structure section below.
 
 OUTPUT_PATH: {absolute path} e.g. /Users/name/project/prototypes/feature-name/ui-concept-{variant-slug}.html
-OPEN_COMMAND: {shell command to open in browser} e.g. open -a "Google Chrome" "/absolute/path/to/file.html"
+OPEN_COMMAND: {shell command to open in browser} e.g. open "/absolute/path/to/file.html" (macOS; xdg-open on Linux, start "" on Windows)
 ```
 
 ---

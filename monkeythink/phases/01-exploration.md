@@ -1,6 +1,6 @@
 ---
 name: exploration
-description: Phase 1 - Exploration. Dispatches the LLM Council with the same problem framing, using the mode set in context.council_mode (auto/sequential/manual). Parallel mode spawns 3 subagents (Cursor only). Sequential mode runs 3 persona passes in sequence (any IDE). Manual mode exports prompts for the user to run externally. Raw responses are saved before synthesis begins.
+description: Phase 1 - Exploration. Dispatches the LLM Council with the same problem framing, using the mode set in context.council_mode (auto/sequential/manual). Parallel mode spawns 3 subagents (tools with subagent support). Sequential mode runs 3 persona passes in sequence (any tool). Manual mode exports prompts for the user to run externally. Raw responses are saved before synthesis begins.
 ---
 
 # Phase 1: Exploration (LLM Council)
@@ -27,8 +27,8 @@ Read `context.council_mode` from state.json:
 
 - **`"sequential"`** → Skip to [Sequential Persona Fallback](#sequential-persona-fallback)
 - **`"manual"`** → Skip to [Manual Export](#manual-export)
-- **`"auto"`** → Attempt to detect Task tool availability:
-  - Attempt a minimal Task tool probe (e.g. a no-op general-purpose task with a short description)
+- **`"auto"`** → Detect whether your tool supports subagents (Task / subagent tool):
+  - Attempt a minimal subagent probe (e.g. a no-op task with a short description)
   - If it **succeeds**: proceed with parallel mode (Steps 1–6 below)
   - If it **fails or is unavailable**: announce fallback and skip to [Sequential Persona Fallback](#sequential-persona-fallback):
     ```
@@ -102,7 +102,7 @@ Do not deviate from this format. The orchestrator that reads your response depen
 
 ## Step 3: Spawn Council Subagents in Parallel
 
-Ensure `.monkeythink/{feature-name}/council-responses/` exists. Spawn all three subagents simultaneously using the Task tool.
+Ensure `.monkeythink/{feature-name}/council-responses/` exists. Spawn all three subagents simultaneously using your tool's subagent mechanism (e.g. Task / subagent tool) if it supports subagents; otherwise run them sequentially in the current session (sequential mode).
 
 Each subagent's `prompt` = council brief from Step 2 **plus** an absolute `OUTPUT_PATH` where that member must write its response:
 
@@ -123,28 +123,28 @@ Do not modify state.json or any other files. Return only a short JSON confirmati
 ```
 
 ```
-Task 1: council-claude subagent
+Subagent 1: council-claude subagent
   - prompt: [council brief from Step 2] + OUTPUT_PATH for claude-exploration.md
   - subagent_type: council-claude
   - description: "Council member Claude — solution exploration"
-  - readonly: false
+  - readonly: false  # if your tool has this parameter; members must be able to write
 
-Task 2: council-gpt subagent
+Subagent 2: council-gpt subagent
   - prompt: [council brief from Step 2] + OUTPUT_PATH for gpt-exploration.md
   - subagent_type: council-gpt
   - description: "Council member GPT — solution exploration"
-  - readonly: false
+  - readonly: false  # if your tool has this parameter; members must be able to write
 
-Task 3: council-gemini subagent
+Subagent 3: council-gemini subagent
   - prompt: [council brief from Step 2] + OUTPUT_PATH for gemini-exploration.md
   - subagent_type: council-gemini
   - description: "Council member Gemini — solution exploration"
-  - readonly: false
+  - readonly: false  # if your tool has this parameter; members must be able to write
 ```
 
 **CRITICAL rules for spawning:**
-- All three are launched **simultaneously** (same message, parallel Task calls)
-- Do NOT pass a `model` parameter in the Task call — each subagent's LLM is already configured independently
+- All three are launched **simultaneously** (same message, parallel subagent calls)
+- Do NOT pass a `model` parameter in the subagent call — each subagent's LLM is already configured independently
 - Do NOT set `readonly: true` — council members must write their response files
 - Each member receives the same council brief but a **different** OUTPUT_PATH
 - Council members write **only** to their OUTPUT_PATH; they do NOT update `state.json`

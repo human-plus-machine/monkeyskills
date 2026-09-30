@@ -17,7 +17,7 @@ This skill guides the exploration phase that happens *before* structured require
 2. **Phase 1: Exploration** — LLM Council dispatched in parallel; each independently proposes solution directions using a structured format *(3 subagents, different LLMs)*
 3. **Phase 1b: Synthesis Review** — Orchestrator merges council responses; surfaces consensus themes, unique insights, and contradictions *(orchestrator-driven)*
 4. **Phase 2a: Direction Setting** — User selects 1-2 directions; agent helps refine scope, success criteria, and constraints *(single agent + user, convergent)*
-5. **Phase 2b: UI Concept** — Loads or generates a `DESIGN.md` design token file, then generates a rough interactive UI sketch as a live `.canvas.tsx` and a self-contained `ui-concept.html`, both styled with real brand tokens *(optional; UI-facing features only)*
+5. **Phase 2b: UI Concept** — Loads or generates a `DESIGN.md` design token file, then generates a rough interactive UI sketch as a self-contained `ui-concept.html` (plus an optional live `.canvas.tsx` if the tool supports Cursor Canvas), styled with real brand tokens *(optional; UI-facing features only)*
 6. **Phase 2c: Risk Challenge** — Council red-teams the chosen direction, each independently identifying risks and blind spots *(optional; 3 subagents in parallel)*
 7. **Phase 3: Discovery Brief** — Agent produces a structured `discovery-brief.md` as the handoff artifact for `@monkeyplan`
 
@@ -78,7 +78,7 @@ Store as `context.council_enabled`.
 
 #### Council Mode (asked only if `council_enabled` is `true`)
 
-Detect whether the Task tool is available in the current environment. To detect: attempt a minimal Task tool call. If it succeeds, the environment supports parallel subagent dispatch (Cursor). If it fails or the tool is unavailable, fall back.
+Detect whether your tool supports subagents (a Task / subagent tool). To detect: attempt a minimal subagent call. If it succeeds, the environment supports parallel subagent dispatch. If it fails or no subagent mechanism exists, fall back to sequential mode.
 
 Ask the user:
 ```
@@ -94,7 +94,7 @@ Ask the user:
 Store as `context.council_mode: "auto|sequential|manual"`. Default is `"auto"`.
 
 **Council mode behavior:**
-- `auto` → Attempt parallel Task dispatch. If successful, use parallel mode (full council). If Task tool is unavailable, automatically fall back to `sequential` and notify the user.
+- `auto` → Attempt parallel subagent dispatch. If successful, use parallel mode (full council). If subagents are unavailable, automatically fall back to `sequential` and notify the user.
 - `sequential` → The orchestrator runs the council brief 3 times in sequence, each time adopting a different persona system prompt (Claude-style, GPT-style, Gemini-style). Honest about the limitation: same underlying model, different reasoning biases.
 - `manual` → Export 3 numbered prompt files to `.monkeythink/{feature-name}/council-prompts/` and pause, waiting for the user to paste responses back.
 
@@ -105,8 +105,8 @@ Ask the user:
 "Is this feature UI-facing — does it involve screens, components, or user interactions?
 
 If yes, I can generate a rough interactive UI sketch after you've chosen a direction.
-You'll get a live canvas preview (Cursor) and a self-contained HTML file you can open
-in any browser — no setup needed. Good for quickly validating the concept visually
+You'll get a self-contained HTML file you can open in any browser — no setup needed
+(plus an optional live canvas preview if your tool supports Cursor Canvas). Good for quickly validating the concept visually
 before writing requirements.
 
 1. Yes - Generate a UI concept sketch
@@ -253,7 +253,7 @@ All generated files go in the **user's workspace** (NOT in the skills directory)
 │       │   ├── 02-gpt-prompt.md          # Phase 1: Exportable prompt for manual mode
 │       │   └── 03-gemini-prompt.md       # Phase 1: Exportable prompt for manual mode
 │       ├── exploration-synthesis.md      # Phase 1b: Orchestrator synthesis of council
-│       ├── ui-concept.canvas.tsx         # Phase 2b: Live canvas sketch (optional, UI-facing only)
+│       ├── ui-concept.canvas.tsx         # Phase 2b: Live canvas sketch (optional; only if tool supports Cursor Canvas)
 │       ├── ui-concept.html               # Phase 2b: Standalone HTML sketch (optional, UI-facing only)
 │       ├── risk-challenge.md             # Phase 2c: Council red-team output (optional)
 │       └── discovery-brief.md           # Phase 3: Handoff artifact for @monkeyplan
@@ -320,17 +320,19 @@ After completing work in a phase:
 
 When executing a council phase (Phase 1 or Phase 2c), the orchestrator selects the execution path based on `context.council_mode`:
 
-#### Parallel Mode (Cursor / Task tool available)
+#### Parallel Mode (subagents supported)
 
 1. **Reads the phase guide** — `phases/01-exploration.md` or `phases/02c-risk-challenge.md`
 2. **Constructs the council brief** — standardized input from current artifacts
-3. **Ensures `council-responses/` exists**, then **spawns 3 subagents in parallel** using the Task tool (council-claude, council-gpt, council-gemini) with `readonly: false`
+3. **Ensures `council-responses/` exists**, then **spawns the three council subagents in parallel** using your tool's subagent mechanism (Task / subagent tool; council-claude, council-gpt, council-gemini) with write access (`readonly: false` where that parameter exists)
 4. **All three receive the identical brief** plus a **member-specific absolute OUTPUT_PATH**
 5. **Each subagent writes its raw response** to its OUTPUT_PATH via the Write tool
 6. **Orchestrator verifies files exist on disk** (do not trust chat JSON alone); resumes a member if its file is missing
 7. **Updates council response status** in state.json after each verified write
 8. **Handles failures gracefully** — proceed with 2 of 3; log `failed` in state
 9. **Proceeds to synthesis** automatically after verified responses are available
+
+**If subagents are unavailable:** run the three council members yourself, one after another, in the current session (sequential persona mode), writing each response to the same `council-responses/` file, and tell the user it is one underlying model.
 
 **Minimum viable council:** At least 2 of 3 members must succeed. If only 1 succeeds, offer to retry or fall back to sequential.
 
@@ -376,7 +378,7 @@ The agent should read these files from the skills directory for detailed methodo
 - **Phase 1 (Exploration):** Read `phases/01-exploration.md` — Council dispatch methodology, council brief construction, parallel execution rules, graceful degradation
 - **Phase 1b (Synthesis Review):** Read `phases/01b-synthesis-review.md` — Merge algorithm, consensus/divergence/contradiction detection, synthesis output format
 - **Phase 2a (Direction Setting):** Read `phases/02a-direction-setting.md` — Convergence methodology, direction refinement, scope sketching
-- **Phase 2b (UI Concept):** Read `phases/02b-ui-concept.md` — DESIGN.md load/generate flow, lint check, token extraction, canvas + HTML dual output styled with brand tokens
+- **Phase 2b (UI Concept):** Read `phases/02b-ui-concept.md` — DESIGN.md load/generate flow, lint check, token extraction, HTML output (default) plus optional Cursor Canvas, styled with brand tokens
 - **Phase 2c (Risk Challenge):** Read `phases/02c-risk-challenge.md` — Red team council dispatch, risk synthesis methodology
 - **Phase 3 (Discovery Brief):** Read `phases/03-discovery-brief.md` — Discovery brief production, handoff artifact format
 - **Orchestrator Persona & Facilitation Rules:** See `## Orchestrator Persona & Facilitation Rules` section in this file — Facilitator persona, tone, behavioral rules, facilitation phrases, council communication guidelines
@@ -522,16 +524,16 @@ When discussing the council with the user:
 - ❌ Skip the synthesis step — always merge and present council findings before asking user to choose a direction
 - ❌ Let a council member's output influence another council member — each runs independently with the same input
 - ❌ Use sequential mode without telling the user it's the same underlying model — always be honest about the limitation
-- ❌ Auto-select parallel mode without first confirming the Task tool is available
+- ❌ Auto-select parallel mode without first confirming subagents are available
 - ❌ Skip Phase 2b when `ui_concept_enabled` is `true` — always offer it after Direction Setting
 - ❌ Skip Step 0 (DESIGN.md check) — always check for an existing DESIGN.md before asking brand questions
 - ❌ Generate the UI sketch without applying design tokens — always use DESIGN.md values
-- ❌ In Cursor: write the canvas to `.monkeythink/` — it must go to `~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx` for the IDE to detect it
-- ❌ In Cursor: use Tailwind arbitrary color values or hardcoded hex in the canvas — use `useHostTheme()` tokens only
-- ❌ In Cursor: import from anything other than `cursor/canvas` — no npm packages, no relative imports
-- ❌ In Cursor: use `'use client'` directive — not needed with the cursor/canvas SDK
+- ❌ In Cursor, when generating the optional canvas: write the canvas to `.monkeythink/` — it must go to `~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx` for the IDE to detect it
+- ❌ In Cursor, optional canvas: use Tailwind arbitrary color values or hardcoded hex in the canvas — use `useHostTheme()` tokens only
+- ❌ In Cursor, optional canvas: import from anything other than `cursor/canvas` — no npm packages, no relative imports
+- ❌ In Cursor, optional canvas: use `'use client'` directive — not needed with the cursor/canvas SDK
 - ❌ Reference a `cursor/canvas` export without first verifying it exists in `~/.cursor/skills-cursor/canvas/sdk/index.d.ts`
-- ❌ Skip generating the HTML file — both canvas and HTML are always produced together
+- ❌ Skip generating the HTML file — it is the default output and is always produced (the canvas is optional)
 - ❌ Use placeholder data ("Item 1", "Item 2") in the UI sketch — use realistic domain data
 - ❌ Ship a DESIGN.md with WCAG contrast failures — always resolve lint contrast errors before proceeding
 - ❌ Skip the MonkeyPlan handoff offer after Phase 3 completes
@@ -551,7 +553,7 @@ When discussing the council with the user:
 - ✅ Load phase guides for detailed methodology
 - ✅ Use workspace-relative paths for all artifacts
 - ✅ Use framing data from Phase 0 as the council brief input — do not ask redundant questions
-- ✅ Detect council mode before dispatching: check Task tool availability when `council_mode` is `"auto"`
+- ✅ Detect council mode before dispatching: check subagent availability when `council_mode` is `"auto"`
 - ✅ In sequential mode: announce the limitation honestly before running the 3 persona passes
 - ✅ In manual mode: save all 3 prompt files before pausing; give clear instructions for each tool
 - ✅ In parallel mode: pass each council member a unique absolute OUTPUT_PATH; verify each file exists before marking `received`
@@ -559,11 +561,11 @@ When discussing the council with the user:
 - ✅ Present the synthesis with explicit consensus/unique/contradiction sections
 - ✅ In Phase 2b: check for existing `DESIGN.md` at workspace root before asking brand questions
 - ✅ In Phase 2b: run `npx @google/design.md lint DESIGN.md` after generating or loading DESIGN.md
-- ✅ In Phase 2b: apply DESIGN.md tokens to both outputs (canvas SDK theme tokens + HTML tailwind.config)
-- ✅ In Phase 2b: generate both the canvas (at `~/.cursor/projects/{workspace-id}/canvases/`) and `ui-concept.html` in a single pass
-- ✅ In Cursor Phase 2b: read `~/.cursor/skills-cursor/canvas/sdk/index.d.ts` before writing the canvas to verify available exports
-- ✅ In Cursor Phase 2b: use `useHostTheme()` for all colors — never hardcode hex values in the canvas
-- ✅ In Cursor Phase 2b: import only from `cursor/canvas` in the canvas component
+- ✅ In Phase 2b: apply DESIGN.md tokens to every output (HTML tailwind.config; canvas SDK theme tokens if the optional canvas is generated)
+- ✅ In Phase 2b: generate `ui-concept.html` (always) and, only if the tool supports Cursor Canvas, the canvas (at `~/.cursor/projects/{workspace-id}/canvases/`) in a single pass
+- ✅ In Cursor Phase 2b (optional canvas): read `~/.cursor/skills-cursor/canvas/sdk/index.d.ts` before writing the canvas to verify available exports
+- ✅ In Cursor Phase 2b (optional canvas): use `useHostTheme()` for all colors — never hardcode hex values in the canvas
+- ✅ In Cursor Phase 2b (optional canvas): import only from `cursor/canvas` in the canvas component
 - ✅ In Phase 2b: use realistic domain data in mock data — no generic placeholders
 - ✅ In Phase 2b: wire up the primary user action as an interactive element
 - ✅ In Phase 2b: if user requests color/font changes, update DESIGN.md first, then re-derive tokens
@@ -580,7 +582,7 @@ Every phase output must meet these standards:
 - **Synthesis:** Explicit consensus/unique/contradiction sections; no opinion blending that obscures differences
 - **Direction Setting:** Chosen direction documented with rationale, scope sketch, success criteria, and constraints
 - **DESIGN.md:** Valid `DESIGN.md` exists at workspace root; lint passes (or was skipped with note); no WCAG contrast failures; tokens cover colors, typography, rounded, spacing, and primary button component
-- **UI Concept:** Both canvas and HTML generated in one pass; canvas uses `useHostTheme()` tokens only (no hardcoded hex, no Tailwind arbitrary values, no `'use client'`); HTML has inline `tailwind.config` with tokens; no external imports in canvas; realistic mock data; primary action is interactive; user reacted before advancing
+- **UI Concept:** HTML generated (plus canvas, if the tool supports Cursor Canvas); HTML has inline `tailwind.config` with tokens; if a canvas is generated it uses `useHostTheme()` tokens only (no hardcoded hex, no Tailwind arbitrary values, no `'use client'`) and has no external imports; realistic mock data; primary action is interactive; user reacted before advancing
 - **Risk Challenge:** Each risk attributed to the council member that identified it; risks de-duplicated before presentation
 - **Discovery Brief:** All sections complete; ready for direct consumption by MonkeyPlan Phase 0 Path C (Discovery Import)
 - **Tone:** Curious, collaborative, exploratory — like a senior product strategist facilitating a discovery workshop

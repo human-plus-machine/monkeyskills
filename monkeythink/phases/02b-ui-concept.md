@@ -1,6 +1,6 @@
 ---
 name: ui-concept
-description: Phase 2b - UI Concept (optional). Loads or generates a DESIGN.md design token file, then generates a rough but realistic visual sketch of the main UI surface for the chosen direction. Produces a live-preview .canvas.tsx for Cursor users and a self-contained ui-concept.html for anyone else. Both outputs use real design tokens from DESIGN.md. Purpose is visual validation of the concept before committing to requirements — not production code.
+description: Phase 2b - UI Concept (optional). Loads or generates a DESIGN.md design token file, then generates a rough but realistic visual sketch of the main UI surface for the chosen direction. Produces a self-contained ui-concept.html that opens in any browser (default, works in any AI IDE), plus an optional live-preview .canvas.tsx only if the tool supports Cursor Canvas. Outputs use real design tokens from DESIGN.md. Purpose is visual validation of the concept before committing to requirements — not production code.
 ---
 
 # Phase 2b: UI Concept
@@ -9,10 +9,10 @@ description: Phase 2b - UI Concept (optional). Loads or generates a DESIGN.md de
 
 Turn the chosen direction into something the user can *see* and react to — before writing a single requirement. A rough but realistic visual sketch is worth more than a paragraph of description for validating whether a concept feels right.
 
-This phase produces three outputs:
+This phase produces two outputs by default, plus one optional:
 - **`DESIGN.md`** — a design token file at the workspace root, either loaded from an existing one or generated from 4 quick questions. Acts as the seed design system, carried forward into MonkeyPlan and MonkeyMode.
-- **`ui-concept.canvas.tsx`** — a self-contained React component that renders live in the Cursor canvas panel, styled with tokens from `DESIGN.md`
-- **`ui-concept.html`** — a self-contained HTML file (Tailwind CDN + vanilla JS) that opens directly in any browser, no tooling needed, also styled with tokens from `DESIGN.md`
+- **`ui-concept.html`** — a self-contained HTML file (Tailwind CDN + vanilla JS) that opens directly in any browser, no tooling needed, styled with tokens from `DESIGN.md`. **This is the default and is always produced.**
+- **`ui-concept.canvas.tsx`** *(optional enhancement)* — a self-contained React component that renders live in the Cursor canvas panel, styled with tokens from `DESIGN.md`. Generate it **only if your tool supports Cursor Canvas** (you are in Cursor and the canvas SDK is available); otherwise skip it entirely.
 
 ## When It Runs
 
@@ -30,8 +30,8 @@ Before starting, read:
 ## Output
 
 - `{workspace}/DESIGN.md` — design token file at the workspace root (loaded or generated)
-- `.monkeythink/{feature-name}/ui-concept.canvas.tsx` — Cursor canvas component
-- `.monkeythink/{feature-name}/ui-concept.html` — standalone HTML file
+- `.monkeythink/{feature-name}/ui-concept.html` — standalone HTML file (always)
+- `.monkeythink/{feature-name}/ui-concept.canvas.tsx` — Cursor canvas component (optional, only if the tool supports it)
 
 ## Process
 
@@ -172,7 +172,7 @@ npx @google/design.md lint DESIGN.md
 
 #### Step 0d: Extract tokens for use in outputs
 
-From the parsed `DESIGN.md`, build a token map to apply in both generated files:
+From the parsed `DESIGN.md`, build a token map to apply in the generated file(s):
 
 ```
 primary_color   = colors.primary
@@ -184,7 +184,7 @@ radius_md       = rounded.md
 spacing_md      = spacing.md
 ```
 
-These are applied directly as CSS custom properties in the HTML file and as `useHostTheme()` theme tokens in the canvas component (no Tailwind arbitrary values, no hardcoded hex).
+These are applied directly as CSS custom properties in the HTML file and as `useHostTheme()` theme tokens in the optional canvas component (no Tailwind arbitrary values, no hardcoded hex).
 
 ---
 
@@ -210,11 +210,15 @@ Design a layout that reflects real usage — not a wireframe with boxes, but a l
 
 The sketch should be rough enough to build in one pass but realistic enough that the user immediately understands what the feature would feel like — in their actual brand colors and typography.
 
-### Step 3: Generate Both Files
+### Step 3: Generate the Files
 
-Generate both files in a single pass. They must represent the same layout, content, and design tokens.
+Generate `ui-concept.html` (default). If your tool supports Cursor Canvas, also generate the canvas in the same pass. All generated files must represent the same layout, content, and design tokens.
 
-#### Canvas Component (`{feature-name}.canvas.tsx`)
+The HTML rules and structure are in the last subsection of this step ("HTML rules and structure").
+
+#### Canvas Component (`{feature-name}.canvas.tsx`) — OPTIONAL, Cursor Canvas only
+
+Skip this subsection unless your tool supports Cursor Canvas. Nothing else in this phase depends on it.
 
 **CRITICAL — Cursor Canvas SDK:** In Cursor, canvases must use the `cursor/canvas` SDK and be saved to the managed canvases directory, NOT inside `.monkeythink/`. The IDE only detects and renders canvas files saved at:
 
@@ -280,7 +284,7 @@ export default function FeatureName() {
 
 Also save the `.monkeythink/{feature-name}/ui-concept.canvas.tsx` path in the artifacts state for reference, but note in a comment that the live canvas is at the managed canvases path above.
 
-#### Standalone HTML (`ui-concept.html`)
+#### HTML rules and structure (`ui-concept.html`, default output)
 
 Rules:
 - Fully self-contained — no external files, no npm, no build step
@@ -310,8 +314,7 @@ Rules:
   ```
 - With this config, use semantic class names like `bg-primary`, `text-on-surface`, `font-brand`, `rounded-brand` throughout the HTML — no arbitrary values needed
 - Vanilla JS only — no frameworks. Use `<script>` blocks with `document.querySelector` for any interactivity
-- Same layout and content as the canvas component
-- Wire up the same primary interaction as the canvas component
+- If a canvas component is also generated, use the same layout and content and wire up the same primary interaction
 
 Structure:
 ```html
@@ -337,7 +340,7 @@ Structure:
 
 ### Step 4: Present to User
 
-After generating all three files:
+After generating the files:
 
 1. Announce what was created:
    ```
@@ -345,8 +348,8 @@ After generating all three files:
 
    Design system: DESIGN.md [created/loaded] at the workspace root — [N] tokens applied.
 
-   - Cursor users: Open `{feature-name}.canvas.tsx` in the canvas panel to see it live (saved to `~/.cursor/projects/{workspace-id}/canvases/`)
-   - Everyone else: Open ui-concept.html in any browser — no setup needed
+   - Open `.monkeythink/{topic-name}/ui-concept.html` in any browser — no setup needed (macOS: `open`, Linux: `xdg-open`, Windows: `start`)
+   - *(Only if a canvas was generated, in Cursor)* Open `{feature-name}.canvas.tsx` in the canvas panel to see it live (saved to `~/.cursor/projects/{workspace-id}/canvases/`)
 
    This shows [1-sentence description of what the sketch depicts], styled with your
    [brand personality] design tokens ([primary color], [font]).
@@ -356,8 +359,8 @@ After generating all three files:
    ```
 
 2. If the user requests visual changes (colors, layout, copy):
-   - Make targeted edits to both files — do not regenerate from scratch unless the layout fundamentally changed
-   - If color or font changes are requested, update `DESIGN.md` first, then re-derive tokens and update both files
+   - Make targeted edits to all generated files — do not regenerate from scratch unless the layout fundamentally changed
+   - If color or font changes are requested, update `DESIGN.md` first, then re-derive tokens and update all generated files
    - Re-present with a summary of what changed
 
 3. **Optional hand-off to `@prototype`:** After presenting the sketch, mention once that if the user wants several side-by-side design variants, or a clone of an existing production page, they can run `@prototype` for this feature. This is an offer only — the inline canvas/HTML sketch above stays the default path, and nothing here blocks on `@prototype`. If the user accepts, tell them to invoke `@prototype` with the feature name and the chosen direction from `state.json`; the sketch and `DESIGN.md` can be used as its starting input. Then continue with the flow below once they return (or if they decline).
@@ -373,17 +376,16 @@ Before marking Phase 2b complete:
 - [ ] `DESIGN.md` exists at workspace root (loaded or generated)
 - [ ] `DESIGN.md` lint passes (or lint was skipped with a note)
 - [ ] All WCAG AA contrast failures resolved before generating files
-- [ ] **In Cursor:** Canvas saved to `~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx`
-- [ ] **In Cursor:** Canvas imports only from `cursor/canvas` — no npm packages, no hardcoded hex colors
-- [ ] **In Cursor:** `useHostTheme()` used for all colors — no hardcoded hex values anywhere
-- [ ] **In Cursor:** SDK exports verified against `~/.cursor/skills-cursor/canvas/sdk/index.d.ts` before use
-- [ ] **Other IDEs:** Canvas file has a single default export, no external npm imports, no `'use client'`
-- [ ] Canvas file uses design tokens (not hardcoded generic colors)
 - [ ] HTML file is fully self-contained (opens in browser with no setup)
 - [ ] HTML file has inline `tailwind.config` with design tokens
-- [ ] Both canvas and HTML show the same layout, content, and brand tokens
+- [ ] *(Optional canvas only)* **In Cursor:** Canvas saved to `~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx`
+- [ ] *(Optional canvas only)* **In Cursor:** Canvas imports only from `cursor/canvas` — no npm packages, no hardcoded hex colors
+- [ ] *(Optional canvas only)* **In Cursor:** `useHostTheme()` used for all colors — no hardcoded hex values anywhere
+- [ ] *(Optional canvas only)* **In Cursor:** SDK exports verified against `~/.cursor/skills-cursor/canvas/sdk/index.d.ts` before use
+- [ ] *(Optional canvas only)* Canvas file has a single default export, no external npm imports, no `'use client'`, and uses design tokens (not hardcoded generic colors)
+- [ ] *(If both generated)* Canvas and HTML show the same layout, content, and brand tokens
 - [ ] Realistic mock data used — no "Item 1", "Item 2" placeholders
-- [ ] Primary user action is interactive in both files
+- [ ] Primary user action is interactive in every generated file
 - [ ] Labels and copy match the domain language from the direction and framing
 - [ ] User explicitly reacted to the sketch ("looks right", "adjust X", "move on")
 
@@ -404,11 +406,13 @@ Before marking Phase 2b complete:
   },
   "artifacts": {
     "design_md": "{workspace}/DESIGN.md",
+    "ui_concept_html": ".monkeythink/{feature-name}/ui-concept.html",
     "ui_concept_canvas": "~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx",
-    "ui_concept_canvas_reference": ".monkeythink/{feature-name}/ui-concept.canvas.tsx",
-    "ui_concept_html": ".monkeythink/{feature-name}/ui-concept.html"
+    "ui_concept_canvas_reference": ".monkeythink/{feature-name}/ui-concept.canvas.tsx"
   }
 }
 ```
+
+`ui_concept_canvas` and `ui_concept_canvas_reference` are set only if the optional Cursor canvas was generated; omit them otherwise.
 
 Set `current_phase: "2c"` when `risk_challenge_enabled` is `true`; otherwise set `risk_challenge: "skipped"` and `current_phase: "3"`.

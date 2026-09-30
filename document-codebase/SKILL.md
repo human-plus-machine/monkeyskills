@@ -253,7 +253,7 @@ If the user corrects something, update `state.json` with the correction and re-p
 
 ### Step 4: Spawn Subagents in Two Batches
 
-Set `state.json` `status` to `"in_progress"`. Spawn subagents using the Task tool (`subagent_type: "general-purpose"`), maximum 4 at a time.
+Set `state.json` `status` to `"in_progress"`. Spawn subagents using your tool's subagent mechanism (e.g. the Task / subagent tool with `subagent_type: "general-purpose"` or equivalent); if your tool has no subagent mechanism, run the docs sequentially in the current session, maximum 4 at a time.
 
 **Model selection:** Omit the `model` parameter and use the default model for all docs; do not pin a model.
 

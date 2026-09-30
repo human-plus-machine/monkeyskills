@@ -30,7 +30,7 @@ review status - it never merges.** (Use `@pr-merge` for that.)
 
 - **Base review (always):** the methodology + generic security/quality checklist
   in **`references/review-checklist.md`**, plus whatever rules the *target repo's
-  own* agent docs declare (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/`).
+  own* agent docs declare (`CLAUDE.md`, `AGENTS.md`, `.windsurfrules`, `.cursor/rules/`).
 - **Repo review profile (optional):** a repo-specific deep checklist layered on
   top. Profiles live in `references/profiles/`; see
   `references/profiles/README.md` for how to add one. None ship by default.
@@ -61,11 +61,11 @@ review status - it never merges.** (Use `@pr-merge` for that.)
    - *"Detected the **<name>** profile - I'll apply the base review plus
      `references/profiles/<name>.md`."* or
    - *"No specific profile matched - I'll apply the **base** review and read this
-     repo's own `AGENTS.md`/`CLAUDE.md`/`.cursor/rules/`."*
+     repo's own `CLAUDE.md`/`AGENTS.md`/`.windsurfrules`/`.cursor/rules/`."*
 
 3. **Load the layers.** Always read `references/review-checklist.md`. If a
    profile matched, also read that profile file. If a local checkout is
-   available, read the target repo's `AGENTS.md`/`CLAUDE.md`/`.cursor/rules/`.
+   available, read the target repo's `CLAUDE.md`/`AGENTS.md`/`.windsurfrules`/`.cursor/rules/`.
 
 ### Step 1 - Tooling preflight
 

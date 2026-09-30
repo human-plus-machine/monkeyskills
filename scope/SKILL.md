@@ -43,7 +43,7 @@ Output: `blueprint.md` (template: `templates/blueprint-template.md`) and `open-q
 
 ## SiteMap = ownership registry (resolved in Phase 0)
 
-SiteMap is the **authoritative** map of org → team → repo → capabilities. Cascade: **A** `sitemap.yaml` (preferred — `templates/sitemap-template.yaml`) → **B** per-repo `catalog-info.yaml` → **C** interactive capture. **Never rank repos by Cursor AI rules / docs density.** Unresolved owners → `UNKNOWN — confirm with PM/Eng` + Phase 4 questions. Full logic in `phases/00-intake.md`; discovery rules in `references/discovery-rules.md`.
+SiteMap is the **authoritative** map of org → team → repo → capabilities. Cascade: **A** `sitemap.yaml` (preferred — `templates/sitemap-template.yaml`) → **B** per-repo `catalog-info.yaml` → **C** interactive capture. **Never rank repos by AI agent rules (`CLAUDE.md`, `AGENTS.md`, `.windsurfrules`, `.cursor/rules`) / docs density.** Unresolved owners → `UNKNOWN — confirm with PM/Eng` + Phase 4 questions. Full logic in `phases/00-intake.md`; discovery rules in `references/discovery-rules.md`.
 
 **If Path B or C is used and the user opts in, `sitemap.yaml` is written to the workspace root before Phase 0 ends** — not merely offered. This is what makes later runs (and `@monkeyplan`) resolve straight to Path A.
 

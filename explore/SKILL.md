@@ -12,7 +12,7 @@ This skill owns the **exploration phase** that happens before structured plannin
 
 **User invokes:** `@explore for [feature]`
 
-This is the **explore skill** (spike / POC). It is **not** your IDE's built-in Explore agent or `/explore` codebase search. Product-problem exploration and discovery briefs belong to `@monkeythink`.
+This is the **explore skill** (spike / POC). It is **not** your IDE's built-in explore agent or `/explore` codebase search. Product-problem exploration and discovery briefs belong to `@monkeythink`.
 
 **Agent guides through:**
 1. **Phase 0: Framing** — Problem, constraints, 2–4 candidate approaches to spike *(conversational)*

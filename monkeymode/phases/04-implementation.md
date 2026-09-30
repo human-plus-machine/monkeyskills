@@ -48,7 +48,7 @@ For languages without a dedicated guide, follow existing codebase patterns and i
 
 ## Per-Story Implementation Instructions
 
-The detailed per-story implementation process (TDD loop, code quality standards, code review self-check, reporting format) is provided to each `implementer` subagent via its prompt. The orchestrator spawns `implementer` subagents (up to 10 in parallel) using `subagent_type: "implementer"` via the Task tool.
+The detailed per-story implementation process (TDD loop, code quality standards, code review self-check, reporting format) is provided to each `implementer` subagent via its prompt. The orchestrator spawns `implementer` subagents (up to 10 in parallel) using `subagent_type: "implementer"` via your tool's subagent mechanism (e.g. the Task / subagent tool).
 
 For detailed code examples and common patterns, see `guides/IMPLEMENTATION-PATTERNS.md`.
  
@@ -56,7 +56,7 @@ For detailed code examples and common patterns, see `guides/IMPLEMENTATION-PATTE
 
 Phase 4 runs as a **two-step pipeline per batch**: test-writer subagents first, then implementer subagents. This enforces real TDD — tests are written and confirmed red before any implementation code exists.
 
-The main agent acts as the **orchestrator** — it never writes tests or implementation code directly. It spawns `test-writer` and `implementer` subagents via the Task tool.
+The main agent acts as the **orchestrator** — it never writes tests or implementation code directly. It spawns `test-writer` and `implementer` subagents via your tool's subagent mechanism (e.g. the Task / subagent tool).
 
 ### Architecture Overview
 
@@ -164,7 +164,7 @@ Update state.json with the batch plan before executing.
 
 #### Step O4: Spawn Test-Writer Subagents
 
-For each story in the current batch, spawn a `test-writer` subagent (`subagent_type: "test-writer"` via the Task tool).
+For each story in the current batch, spawn a `test-writer` subagent (`subagent_type: "test-writer"` via your tool's subagent mechanism (e.g. the Task / subagent tool with the named subagent)).
 
 **How to build the test-writer prompt:**
 1. Include the story-specific context (code spec, design context, file boundaries, language guidelines) in the subagent's `prompt` parameter
@@ -188,7 +188,7 @@ After all test-writer subagents complete:
 
 #### Step O5: Spawn Implementer Subagents
 
-For each story in the current batch, spawn an `implementer` subagent (`subagent_type: "implementer"` via the Task tool).
+For each story in the current batch, spawn an `implementer` subagent (`subagent_type: "implementer"` via your tool's subagent mechanism (e.g. the Task / subagent tool with the named subagent)).
 
 **How to build the implementer prompt:**
 1. Include the story-specific context (code spec, design context, file boundaries, language guidelines, and the list of test files already written) in the subagent's `prompt` parameter

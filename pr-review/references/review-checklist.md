@@ -7,7 +7,7 @@ applies to **every** PR. When a repo review profile is loaded (see
 repo-specific rules and usually where most findings come from.
 
 **The target repo's own rules win.** Read the repo's `AGENTS.md`, `CLAUDE.md`,
-and `.cursor/rules/` and treat them as authoritative over these generic notes.
+`.windsurfrules`, and `.cursor/rules/` and treat them as authoritative over these generic notes.
 
 Work top-to-bottom, but spend effort **proportional to the diff**. A one-line URL
 fix needs the route/util anchors checked; a backend route change needs the full

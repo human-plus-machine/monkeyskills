@@ -22,7 +22,7 @@ Never jump to "the repo that looks most documented."
 
 The following **must not** increase a repo's inclusion or ownership score:
 
-- Presence or size of `.cursor/`, `.cursor/rules/`, `AGENTS.md`
+- Presence or size of `.cursor/`, `.cursor/rules/`, `CLAUDE.md`, `AGENTS.md`, `.windsurfrules`
 - Density of README / architecture markdown
 - Number of AI skill files or eval fixtures
 - Local checkout alone (monorepo open in the IDE)
