@@ -20,6 +20,8 @@ Use the MonkeySkills pipeline for structured AI-assisted development. The pipeli
 
 - **`/monkeymode`** — Full self-guided implementation: design → user stories → code spec → implementation (TDD with parallel subagents) → verification → integration → acceptance. Use when you have clear requirements and are ready to build.
 
+- **`/monkeytriage`** — Not sure how big a change is? Triage scores complexity and routes to `/monkeymode-lite` (small, single-story features) or `/monkeymode` (full lifecycle).
+
 - **`/commit`** — Git workflow: creates a `feat/` or `bugs/` topic branch, commits per story/phase, pushes, and optionally opens a PR. Always use this after a MonkeyMode phase instead of committing manually.
 
 ## Rules
