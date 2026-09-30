@@ -13,7 +13,7 @@
     "url": "https://github.com/human-plus-machine/monkeyskills.git"
   },
   "scripts": {
-    "test": "node --test test/cursor-plugin.test.js"
+    "test": "node --test test/*.test.js"
   },
   "keywords": ["claude-code", "cursor", "cursor-plugin", "skills", "monkeyskills", "ai", "claude"],
   "license": "MIT"

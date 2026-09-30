@@ -35,6 +35,10 @@ This skill orchestrates a complete feature development lifecycle through structu
 - Subagents do not share the orchestrator's skill-folder context. Any guide path passed in a subagent prompt MUST be the resolved absolute form (`{skill_dir}/monkeymode/guides/…`).
 - `{workspace}` is the user's project root; all generated artifacts live under `{workspace}/.monkeymode/{feature-name}/`.
 
+## If subagents are unavailable
+
+If the environment has no subagent/Task tool (e.g. Windsurf, Codex CLI, Gemini CLI, GitHub Copilot), execute each subagent phase yourself, inline and sequentially, following the same phase guide and writing the same artifacts.
+
 ## Workspace Setup
 
 ### On First Invocation
