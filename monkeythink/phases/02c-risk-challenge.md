@@ -22,7 +22,7 @@ Phase 2c begins when the user confirms they want a risk challenge (set during Ph
 Read `context.council_mode` from state.json — this was set during Phase 1 and is reused here.
 
 - **`"auto"`** → Re-check whether the Task tool is available (as in Phase 1). If yes, treat as parallel (Steps 1–3 below); if not, treat as sequential (and tell the user)
-- **`"parallel"`** (a resolved `auto`) → Proceed with Steps 1–3 (parallel Task dispatch)
+- **`"parallel"`** (a resolved `auto`) → Proceed with Steps 1–3 (parallel subagent dispatch)
 - **`"sequential"`** → Skip to [Sequential Persona Fallback](#sequential-persona-fallback-risk)
 - **`"manual"`** → Skip to [Manual Export](#manual-export-risk)
 
@@ -128,7 +128,7 @@ List 2-4 assumptions this direction is taking for granted that have not been val
 
 ## Step 3: Spawn Risk Challenge Council in Parallel
 
-Ensure `.monkeythink/{feature-name}/council-responses/` exists. Spawn all three subagents simultaneously using the Task tool, identical to Phase 1.
+Ensure `.monkeythink/{feature-name}/council-responses/` exists. Spawn all three subagents simultaneously using your tool's subagent mechanism (e.g. Task / subagent tool), identical to Phase 1; if subagents are unavailable, run sequentially (sequential mode).
 
 Each subagent's `prompt` = risk challenge brief **plus** an absolute `OUTPUT_PATH`:
 
@@ -149,23 +149,23 @@ Do not modify state.json or any other files. Return only a short JSON confirmati
 ```
 
 ```
-Task 1: council-claude subagent
+Subagent 1: council-claude subagent
   - prompt: [risk challenge brief] + OUTPUT_PATH for claude-risk.md
   - subagent_type: council-claude
   - description: "Council member Claude — risk challenge"
-  - readonly: false
+  - readonly: false  # if your tool has this parameter; members must be able to write
 
-Task 2: council-gpt subagent
+Subagent 2: council-gpt subagent
   - prompt: [risk challenge brief] + OUTPUT_PATH for gpt-risk.md
   - subagent_type: council-gpt
   - description: "Council member GPT — risk challenge"
-  - readonly: false
+  - readonly: false  # if your tool has this parameter; members must be able to write
 
-Task 3: council-gemini subagent
+Subagent 3: council-gemini subagent
   - prompt: [risk challenge brief] + OUTPUT_PATH for gemini-risk.md
   - subagent_type: council-gemini
   - description: "Council member Gemini — risk challenge"
-  - readonly: false
+  - readonly: false  # if your tool has this parameter; members must be able to write
 ```
 
 Follow the same parallel execution rules from Phase 1: do NOT pass a `model` parameter, do NOT set `readonly: true`, verify each response file exists on disk before marking `received`, resume if missing, update state, handle failures gracefully, require ≥2 of 3 verified files.
