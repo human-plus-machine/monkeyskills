@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Last Updated:** 2024  
-**Target:** Production Python systems requiring high quality, security, and maintainability
+**Target:** Production Python systems requiring high quality, security, and maintainability. Framework-agnostic — load the appropriate framework supplement (FastAPI, Django, etc.) for framework-specific patterns.
 
 ---
 
@@ -85,7 +85,7 @@ from typing import Optional
 
 # 2. Third-party packages
 import requests
-from fastapi import FastAPI
+from sqlalchemy import create_engine
 
 # 3. Local application
 from app.models import User
@@ -591,7 +591,7 @@ def process_large_file(file_path: str):
 [project]
 dependencies = [
     "requests>=2.31.0,<3.0.0",
-    "pydantic>=2.0.0,<3.0.0",
+    "sqlalchemy>=2.0.0,<3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -931,6 +931,7 @@ pre-commit run --all-files
 - [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [OWASP Python Security](https://cheatsheetseries.owasp.org/cheatsheets/Python_Security_Cheat_Sheet.html)
 - [Python Packaging Guide](https://packaging.python.org/)
+- See the framework supplement for framework-specific documentation links
 
 ---
 

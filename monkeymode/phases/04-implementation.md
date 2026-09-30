@@ -10,52 +10,37 @@ Orchestrate the implementation of user stories from code specs into working, tes
 
 ## Language-Specific Coding Standards
 
-Before writing any code, load the appropriate coding guidelines from `guides/` based on the project's primary language:
+Before writing any code, load the appropriate coding guidelines from `guides/` based on `context.detected_stack` in state.json (populated during Phase 1A discovery). Guides load in three tiers: base language guide, then framework/cloud supplement, then any platform supplement. Later tiers take precedence where they conflict with earlier ones.
 
-### Python Projects
-**Guide:** `guides/PYTHON-CODING-GUIDELINES.md`
-- **Code Style:** PEP 8, Black formatting (88 char), strict type hints
-- **Architecture:** Clean architecture with layered separation (Domain -> Application -> Infrastructure -> Presentation)
-- **Testing:** TDD mandatory, 90% coverage minimum, pytest with fixtures
-- **Documentation:** Google-style docstrings for all public APIs
-- **Security:** OWASP compliance, input validation, parameterized queries, secrets management
-- **Tooling:** Black, Ruff, mypy, bandit, pytest-cov
+### Step 1: Load the base language guide
 
-### Java Projects
-**Guide:** `guides/JAVA-CODING-GUIDELINES.md`
-- **Code Style:** Google Java Style (2-space indent, 100-char column, K&R braces), no wildcard imports
-- **Architecture:** Clean architecture, Spring DI (constructor injection), Repository pattern, DTO/Entity separation
-- **Testing:** TDD mandatory, 90% coverage minimum, JUnit 5 + Mockito + AssertJ
-- **Documentation:** Javadoc for all public APIs (`@param`, `@return`, `@throws`)
-- **Security:** OWASP compliance, PreparedStatement for SQL, BCrypt for passwords, secrets via vault/env
-- **Tooling:** google-java-format, Checkstyle, SpotBugs, JaCoCo
+| Language | Base Guide | Key Standards |
+|----------|-----------|---------------|
+| Python | `guides/PYTHON-CODING-GUIDELINES.md` | PEP 8, Black (88 char), strict type hints, Clean Architecture, pytest, OWASP |
+| Java | `guides/JAVA-CODING-GUIDELINES.md` | Google Java Style, generics, Javadoc, Clean Architecture, JUnit + Mockito + AssertJ, OWASP |
+| Angular | `guides/ANGULAR-CODING-GUIDELINES.md` | Hyphenated files, TypeScript strict, feature-based dirs, signals, Jasmine/Karma, ESLint |
+| .NET / C# | `guides/DOTNET-CODING-GUIDELINES.md` | Allman braces, PascalCase, Clean Architecture, xUnit + Moq + FluentAssertions, OWASP |
+| React | `guides/REACT-CODING-GUIDELINES.md` | Server Components, hooks, React Compiler, Vitest/RTL, ESLint |
+| Terraform | `guides/TERRAFORM-CODING-GUIDELINES.md` | `terraform fmt`, module structure, `terraform test`, tfsec/checkov |
 
-### Angular Projects
-**Guide:** `guides/ANGULAR-CODING-GUIDELINES.md`
-- **Code Style:** Hyphenated file names, TypeScript strict mode, Angular selector prefixes, ESLint
-- **Architecture:** Feature-based directories, smart/dumb component pattern, services for business logic, signals for state
-- **Testing:** TDD mandatory, 90% coverage minimum, Jasmine/Karma (or Vitest) + Cypress for E2E
-- **Documentation:** TSDoc/JSDoc for all public services, components, and directives
-- **Security:** Angular built-in XSS protection, CSRF/XSRF, CSP headers, route guards, no `bypassSecurityTrust*`
-- **Tooling:** ESLint with @angular-eslint, Prettier, Angular CLI
+### Step 2: Load the framework / cloud-provider supplement
 
-### .NET / C# Projects
-**Guide:** `guides/DOTNET-CODING-GUIDELINES.md`
-- **Code Style:** Allman braces, 4-space indent, PascalCase public, camelCase private with `_` prefix, file-scoped namespaces
-- **Architecture:** Clean architecture, built-in DI container, Repository/Unit of Work, MediatR/CQRS, Minimal APIs or Controllers
-- **Testing:** TDD mandatory, 90% coverage minimum, xUnit + Moq + FluentAssertions
-- **Documentation:** XML doc comments (`///`) for all public APIs
-- **Security:** OWASP compliance, EF Core parameterized queries, FluentValidation, Identity framework, secrets via Key Vault
-- **Tooling:** dotnet format, Roslyn analyzers, .editorconfig, Coverlet
+Read `context.detected_stack.framework` (and `cloud_provider` for IaC) from state.json and load the matching supplement:
 
-### Terraform Projects
-**Guide:** `guides/TERRAFORM-CODING-GUIDELINES.md`
-- **Code Style:** `terraform fmt`, 2-space indent, underscores in names, singular resource names, meta-arguments first
-- **Architecture:** Standard module structure (main.tf, variables.tf, outputs.tf), feature-based file grouping, remote state
-- **Testing:** `terraform validate`, `terraform test` (native), Terratest, checkov/tfsec for static analysis
-- **Documentation:** `description` on all variables/outputs, README per module (terraform-docs)
-- **Security:** No secrets in state/code, remote state encryption, IAM least privilege, `sensitive` flags
-- **Tooling:** terraform fmt, terraform validate, TFLint, tfsec, checkov, terraform-docs
+| Language + Framework | Supplement |
+|---------------------|------------|
+| Java + Spring Boot | `guides/JAVA-SPRING-BOOT-SUPPLEMENT.md` |
+| Java + Quarkus | `guides/JAVA-QUARKUS-SUPPLEMENT.md` |
+| Python + FastAPI | `guides/PYTHON-FASTAPI-SUPPLEMENT.md` |
+| Python + Django | `guides/PYTHON-DJANGO-SUPPLEMENT.md` |
+| Terraform + AWS (`cloud_provider: "aws"`) | `guides/TERRAFORM-AWS-SUPPLEMENT.md` |
+| Terraform + GCP (`cloud_provider: "gcp"`) | `guides/TERRAFORM-GCP-SUPPLEMENT.md` |
+
+If no supplement exists for the detected framework or cloud provider, follow the base guide plus established conventions found in the existing codebase.
+
+### Step 3: Load any platform supplement
+
+If `context.detected_stack.platform_supplement_loaded == true` (set during Phase 1A; the supplement is `guides/{PLATFORM}-PLATFORM-SUPPLEMENT.md`, see `guides/_PLATFORM-SUPPLEMENT-TEMPLATE.md` for the format), load it last. If `platform_supplement_loaded` is `false`, skip this step (never key on `platform != null` alone; re-surface any `platform_supplement_warnings`). Platform supplements take precedence over framework supplements, which take precedence over base guides.
 
 ### Other Languages
 
@@ -114,8 +99,11 @@ For each story in state.stories:
   IF story.status == "code_spec" (code spec completed)
      AND story.status != "implementation_complete"
      AND story.status != "failed"
+     AND story.type != "integration"   # Integration story runs in Phase 6, not Phase 4
   THEN -> eligible for implementation
 ```
+
+**Note:** The integration story (if present, `type: "integration"`) is excluded from Phase 4 batching. It is implemented during Phase 6 after all component stories are verified.
 
 If ZERO stories are eligible, inform the user and ask which stories need code specs (Phase 3) first.
 
@@ -209,7 +197,7 @@ For each story in the current batch, spawn an `implementer` subagent (`subagent_
 - Launch all implementer subagents for a batch in a **single message** (parallel tool calls)
 - Never exceed 10 concurrent subagents
 - Each subagent gets a **complete, self-contained prompt** — subagents have NO access to the conversation history
-- **Do NOT pass a `model` parameter** — omit it so subagents inherit the parent's model. Never use `model: "fast"` — implementation requires the full-capability model.
+- **Do NOT pass a `model` parameter** — omit it so subagents inherit the parent's model. Do not select a fast/cheap model (if your tool supports selecting one); otherwise omit the model. Implementation requires the full-capability model.
 
 #### Step O5b: Monitor and Collect Results
 
@@ -229,9 +217,19 @@ After ALL implementer subagents in a batch complete:
 1. **Update state.json** — Set each story's status based on subagent results
 2. **Run full test suite** — Execute ALL tests (not just new ones) to catch cross-story regressions
 3. **Run linter** — Ensure no linting errors across the entire project
-4. **Check for unexpected file overlaps** — Verify no two subagents modified the same file
-5. **Collect test corrections** — Aggregate any test corrections from all implementer reports into state.json
-6. **Record batch results** in `parallel_execution.batches`
+4. **Run security checks** — Use tools detected in Phase 1A Step 0c, or stack defaults:
+   - Secret scan (gitleaks / trufflehog) — **block on any finding**
+   - SCA / dependency audit — **block on critical/high** (threshold from 1C)
+   - SAST if configured in project CI (e.g., Semgrep, CodeQL) — report critical/high
+   - For IaC stories: tfsec/checkov (run at orchestrator level)
+5. **Security self-check per story** (from 1C Security Design):
+   - Input validated at boundary
+   - Authz enforced before business logic
+   - No hardcoded secrets
+   - No sensitive data in logs/errors
+6. **Check for unexpected file overlaps** — Verify no two subagents modified the same file
+7. **Collect test corrections** — Aggregate any test corrections from all implementer reports into `verification.test_corrections` in state.json
+8. **Record batch results** in `parallel_execution.batches`
 
 ```json
 {
@@ -270,7 +268,7 @@ Test-Writer Pass:
 Implementer Pass:
   Story 1: Embeddings Component — completed (12/12 tests passing, 0 test corrections)
   Story 2: Vector Store — completed (8/8 tests passing, 1 test correction logged)
-  Story 3: Storage Component — failed (error: S3 mock setup issue in Task 2)
+  Story 3: Storage Component — failed (error: object-store mock setup issue in Task 2)
 
 Full test suite: 20/20 passing
 Linter: clean
@@ -316,25 +314,25 @@ Each subagent receives a self-contained prompt with all necessary story-specific
 **Story ID:** {story_key}
 **Feature:** {feature_name}
 
-## Code Spec
-
-{paste the FULL contents of the story's code spec file}
-
 ## Files to Read on Startup
 
-Before writing any tests, read these files to load context:
+Before writing any tests, read these files to load context. Do NOT expect the code spec pasted here; read it from disk.
+
+**Code spec** (read FIRST — task breakdown, signatures, test cases, SEC-* security test cases):
+- {workspace}/.monkeymode/{feature-name}/code_specs/story-N-spec.md
 
 **Design context:**
 - {workspace}/.monkeymode/{feature-name}/design/1a-discovery.md — sections: {list relevant section names}
-- {workspace}/.monkeymode/{feature-name}/design/1b-contracts.md — sections: {list relevant section names}
+- {workspace}/.monkeymode/{feature-name}/design/1b-contracts.md — sections: {list relevant section names} (include "Authorization Matrix")
+- {workspace}/.monkeymode/{feature-name}/design/1c-operations.md — "Security Design" section
 
-**Language-specific coding guidelines** (pick ONE):
-- Python: monkeymode/guides/PYTHON-CODING-GUIDELINES.md
-- Java: monkeymode/guides/JAVA-CODING-GUIDELINES.md
-- Angular: monkeymode/guides/ANGULAR-CODING-GUIDELINES.md
-- .NET/C#: monkeymode/guides/DOTNET-CODING-GUIDELINES.md
-- React: monkeymode/guides/REACT-CODING-GUIDELINES.md
-- Terraform: monkeymode/guides/TERRAFORM-CODING-GUIDELINES.md
+**Language-specific coding guidelines** (base guide + framework/cloud supplement + platform supplement, per `context.detected_stack`):
+- Base guide: {skill_dir}/monkeymode/guides/{LANGUAGE}-CODING-GUIDELINES.md
+- Framework supplement (if applicable): {skill_dir}/monkeymode/guides/{LANGUAGE}-{FRAMEWORK}-SUPPLEMENT.md
+- Cloud provider supplement (if IaC): {skill_dir}/monkeymode/guides/TERRAFORM-{PROVIDER}-SUPPLEMENT.md
+- Platform supplement (only if `detected_stack.platform_supplement_loaded == true`): {skill_dir}/monkeymode/guides/{PLATFORM}-PLATFORM-SUPPLEMENT.md
+
+The orchestrator fills in the actual paths (e.g. Python + FastAPI -> PYTHON-CODING-GUIDELINES.md + PYTHON-FASTAPI-SUPPLEMENT.md; Angular, React, .NET -> base guide only). Supplements take precedence over the base guide.
 
 **Codebase pattern references** (read these to match existing test conventions exactly):
 - {path to similar existing test file, e.g., tests/users/test_repository.py}
@@ -353,6 +351,9 @@ Do NOT write implementation logic in stubs.
 Do NOT modify any existing source files.
 Do NOT modify state.json.
 Do NOT commit any changes.
+
+**Security tests (mandatory):**
+Write a failing test for every SEC-* row in the code spec's "SEC-* Security Test Cases" and "Security Implementation" sections.
 ```
 
 #### Implementer Prompt Template
@@ -363,10 +364,6 @@ Do NOT commit any changes.
 **Story:** {story_title}
 **Story ID:** {story_key}
 **Feature:** {feature_name}
-
-## Code Spec
-
-{paste the FULL contents of the story's code spec file}
 
 ## Test Files Already Written
 
@@ -379,20 +376,23 @@ you are correcting a genuine spec mismatch (see escape hatch rules in your base 
 
 ## Files to Read on Startup
 
-Before writing any code, read these files to load context:
+Before writing any code, read these files to load context. The code spec is passed by file path (not pasted) — read it FIRST.
+
+**Code spec** (your implementation plan):
+- {workspace}/.monkeymode/{feature-name}/code_specs/story-N-spec.md
 
 **Design context:**
 - {workspace}/.monkeymode/{feature-name}/design/1a-discovery.md — sections: {list relevant section names}
 - {workspace}/.monkeymode/{feature-name}/design/1b-contracts.md — sections: {list relevant section names}
 - {workspace}/.monkeymode/{feature-name}/design/1c-operations.md — sections: {list relevant section names}
 
-**Language-specific coding guidelines** (pick ONE):
-- Python: monkeymode/guides/PYTHON-CODING-GUIDELINES.md
-- Java: monkeymode/guides/JAVA-CODING-GUIDELINES.md
-- Angular: monkeymode/guides/ANGULAR-CODING-GUIDELINES.md
-- .NET/C#: monkeymode/guides/DOTNET-CODING-GUIDELINES.md
-- React: monkeymode/guides/REACT-CODING-GUIDELINES.md
-- Terraform: monkeymode/guides/TERRAFORM-CODING-GUIDELINES.md
+**Language-specific coding guidelines** (base guide + framework/cloud supplement + platform supplement, per `context.detected_stack`):
+- Base guide: {skill_dir}/monkeymode/guides/{LANGUAGE}-CODING-GUIDELINES.md
+- Framework supplement (if applicable): {skill_dir}/monkeymode/guides/{LANGUAGE}-{FRAMEWORK}-SUPPLEMENT.md
+- Cloud provider supplement (if IaC): {skill_dir}/monkeymode/guides/TERRAFORM-{PROVIDER}-SUPPLEMENT.md
+- Platform supplement (only if `detected_stack.platform_supplement_loaded == true`): {skill_dir}/monkeymode/guides/{PLATFORM}-PLATFORM-SUPPLEMENT.md
+
+The orchestrator fills in the actual paths (e.g. Python + FastAPI -> PYTHON-CODING-GUIDELINES.md + PYTHON-FASTAPI-SUPPLEMENT.md; Angular, React, .NET -> base guide only). Supplements take precedence over the base guide.
 
 **Codebase pattern references:**
 - {path to similar existing source file, e.g., src/users/repository.py}
@@ -411,6 +411,11 @@ Tests are already written — do NOT create new test files.
 Do NOT modify state.json.
 Do NOT modify files belonging to other stories.
 Do NOT commit any changes.
+
+**Security requirements (mandatory):**
+Read 1c-operations.md "Security Design" and 1b-contracts.md "Authorization Matrix".
+Implement security controls BEFORE feature logic in each task.
+Security test cases (SEC-*) in the code spec are blocking — make them pass.
 ```
 
 ### Conflict Detection — Detailed Rules
@@ -446,7 +451,8 @@ If the session is interrupted during Phase 4 parallel execution:
 2. **If current_batch exists and status is "in_progress":**
    - Check each story's status in the batch
    - Stories marked "implementation_complete" -> skip
-   - Stories still "implementation" -> re-run in a new batch
+   - Stories at "tests_written" (red tests exist, implementer not finished) -> re-run only the implementer step in a new batch
+   - Stories still at "code_spec" (test-writer not finished) -> re-run from the test-writer step in a new batch
    - Stories marked "failed" -> present to user for decision
 3. **If current_batch is null:**
    - Look at `parallel_execution.batches` history
@@ -542,7 +548,7 @@ If the session is interrupted during Phase 4 parallel execution:
   "stories": {
     "story-3-storage-component": {
       "status": "failed",
-      "current_task": "Failed at Task 2: S3 mock setup error",
+      "current_task": "Failed at Task 2: object-store mock setup error",
       "last_updated": "2024-01-16T09:10:00Z"
     }
   }

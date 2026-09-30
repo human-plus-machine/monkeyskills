@@ -48,10 +48,11 @@ Don't redo everything. Only update what actually changed.
 ### 3. Cascade Forward, Never Skip
 
 ```
-If you change Phase 1, check Phase 2, 3, 4.
-If you change Phase 2, check Phase 3, 4.
-If you change Phase 3, check Phase 4.
-If you change Phase 4 only, no cascade needed.
+If you change Phase 1, check Phase 2, 2B, 3, 4, then re-run 5, 6, 7 for affected stories.
+If you change Phase 2, check Phase 2B, 3, 4, then re-run 5, 6, 7 for affected stories.
+If you change Phase 2B (acceptance checklist), re-run only the affected Phase 7 checks.
+If you change Phase 3, check Phase 4, then re-run 5, 6, 7 for affected stories.
+If you change Phase 4 (or Phase 6 integration wiring), no design/spec cascade is needed — but re-verify (Phase 5, or the Phase 6 post-integration verification) and re-run affected Phase 7 checks.
 
 Never update a downstream artifact without checking if its upstream is still valid.
 ```
@@ -81,6 +82,9 @@ Before making any changes, classify what happened:
 | `integration-failure` | Stories don't integrate correctly | "Story 1's interface doesn't match Story 2's usage" |
 | `requirements-change` | New or changed requirements | "We also need soft-delete support" |
 | `performance-issue` | Performance doesn't meet targets | "Query takes 2s, target is 200ms — need index strategy change" |
+| `security-vulnerability` | Exploitable weakness found in review, pen test, or security/QA gate | "Endpoint allows IDOR — missing ownership check" |
+| `security-dependency` | Critical CVE in dependency | "Transitive dependency CVE requires upgrade" |
+| `security-design-gap` | Threat not mitigated in design | "No rate limiting on login endpoint" |
 
 ### Step 2: Determine the Origin Phase
 
@@ -92,6 +96,14 @@ Symptom in Phase 4 (Implementation)?
   → Is the code correct but spec is wrong?          → Origin: Phase 3
   → Is the spec correct but stories are wrong?      → Origin: Phase 2
   → Are stories correct but design is wrong?        → Origin: Phase 1
+
+Symptom in Phase 5 (Verification), Phase 6 (Integration), or Phase 7 (Acceptance)?
+  → Code does not match the spec (verifier/reworker loop)   → Origin: Phase 4 (reworker); escalated spec issue → Phase 3
+  → Integration wiring, shared-file merge, or e2e test wrong → Origin: Phase 6 (integration story); its spec wrong → Phase 3
+  → Cross-story contract mismatch                           → Origin: Phase 1B (or Phase 2 if the interface was mis-scoped)
+  → Acceptance check itself is wrong or untestable          → Origin: Phase 2B (fix the checklist item only)
+  → Feature works as specced but misses a real need         → Origin: Phase 1A/2 (design gap), cascade forward
+  → Same routing as the table in 07-acceptance.md ("Rework from Phase 7")
 
 Ask yourself: "If I fix ONLY this phase, will the problem be fully resolved?"
   → If yes, this is the origin phase
@@ -110,10 +122,22 @@ User reports issue
     │   └─ YES → Origin: Phase 3 (Code Spec) — fix spec, cascade to Phase 4
     │
     ├─ Are the stories wrong? (wrong decomposition, dependencies, missing story)
-    │   └─ YES → Origin: Phase 2 (User Stories) — fix stories, cascade to Phase 3+4
+    │   └─ YES → Origin: Phase 2 (User Stories) — fix stories, cascade to Phase 2B+3+4
+    │
+    ├─ Is the acceptance checklist wrong? (bad expected value, untestable step)
+    │   └─ YES → Origin: Phase 2B — fix the item, re-run it in Phase 7
+    │
+    ├─ Is the integration wiring wrong? (shared files, DI, e2e test)
+    │   └─ YES → Origin: Phase 6 (integration story) — fix, re-run post-integration verification
     │
     └─ Is the design wrong? (wrong architecture, bad data model, missing integration)
-        └─ YES → Origin: Phase 1 (Design) — fix design, cascade to Phase 2+3+4
+        └─ YES → Origin: Phase 1 (Design) — fix design, cascade to Phase 2+2B+3+4, then re-verify (5, 6, 7)
+
+Security issue found:
+  ├─ Missing control never designed? → Origin: Phase 1C (or 1B for contract-level)
+  ├─ Designed but not in spec? → Origin: Phase 3
+  ├─ Spec'd but not implemented? → Origin: Phase 4
+  └─ Dependency/CVE only? → Origin: Phase 4 + security/QA gate; cascade to 1C supply chain policy if policy gap
 ```
 
 ### Step 3: Assess the Scope
@@ -132,6 +156,7 @@ User reports issue
 - Phase 1A: [specific changes]
 - Phase 1B: [specific changes]
 - Phase 2: [N stories affected]
+- Phase 2B: [N acceptance items affected]
 - Phase 3: [N specs need updating]
 - Phase 4: [N files need rewriting]
 
@@ -148,7 +173,7 @@ Before making any changes, create a rework entry:
 ## Rework: [Brief Description]
 
 **Trigger:** [trigger type from classification table]
-**Origin Phase:** [1a/1b/1c/2/3/4]
+**Origin Phase:** [1a/1b/1c/2/2b/3/4/6]
 **Scope:** [cosmetic/targeted/moderate/significant/major]
 **Requested By:** [user/code-review/qa/integration-test]
 **Description:** [What needs to change and why]
@@ -203,16 +228,24 @@ Phase 1 changed
     │   ├─ Are any new stories needed?
     │   └─ Do integration contracts need updating?
     │
+    ├─→ Phase 2B (Acceptance Checklist)
+    │   └─ Do any checklist items reference changed behavior or contracts?
+    │
     ├─→ Phase 3 (Code Specs) — for each affected story
     │   ├─ Do function signatures need updating?
     │   ├─ Do data structures need updating?
     │   ├─ Do test cases need updating?
     │   └─ Are new tasks needed or old tasks removed?
     │
-    └─→ Phase 4 (Implementation) — for each affected spec
-        ├─ Does existing code need modification?
-        ├─ Do tests need updating?
-        └─ Is new code needed?
+    ├─→ Phase 4 (Implementation) — for each affected spec
+    │   ├─ Does existing code need modification?
+    │   ├─ Do tests need updating?
+    │   └─ Is new code needed?
+    │
+    └─→ Phases 5, 6, 7 — re-run for affected stories
+        ├─ Phase 5: re-verify each regressed story (status back to `code_spec`, then through Phase 4 again)
+        ├─ Phase 6: re-run the integration story and post-integration verification
+        └─ Phase 7: re-run affected acceptance checks
 ```
 
 #### Cascade from Phase 2 (User Stories)
@@ -220,14 +253,18 @@ Phase 1 changed
 ```
 Phase 2 changed
     │
+    ├─→ Phase 2B (Acceptance Checklist) — update items mapped to changed criteria
+    │
     ├─→ Phase 3 (Code Specs) — for each affected story
     │   ├─ Update technical context section
     │   ├─ Update acceptance criteria mapping
     │   └─ Adjust task breakdown if scope changed
     │
-    └─→ Phase 4 (Implementation) — for each affected spec
-        ├─ Update code to match new spec
-        └─ Update/add tests
+    ├─→ Phase 4 (Implementation) — for each affected spec
+    │   ├─ Update code to match new spec
+    │   └─ Update/add tests
+    │
+    └─→ Phases 5, 6, 7 — re-verify, re-integrate, re-run affected acceptance checks
 ```
 
 #### Cascade from Phase 3 (Code Spec)
@@ -235,10 +272,37 @@ Phase 2 changed
 ```
 Phase 3 changed
     │
-    └─→ Phase 4 (Implementation)
-        ├─ Update implementation to match new spec
-        ├─ Update tests
-        └─ Re-run verification
+    ├─→ Phase 4 (Implementation)
+    │   ├─ Update implementation to match new spec
+    │   └─ Update tests
+    │
+    └─→ Phases 5, 6, 7 — re-run verification, the integration story (if its files are affected), and affected acceptance checks
+```
+
+#### Cascade from Phase 1C (Security Design)
+
+```
+Phase 1C security design changed
+    │
+    ├─→ Phase 1B: Update auth matrix / security contract patterns
+    ├─→ Phase 2: Add/update security acceptance criteria
+    ├─→ Phase 2B: Add security acceptance checks
+    ├─→ Phase 3: Add SEC-* tasks to affected specs
+    └─→ Phase 4+: Re-implement and re-verify
+```
+
+#### Cascade from Phase 2B, 6 (and re-running 5, 7)
+
+```
+Phase 2B changed (checklist item fixed)
+    └─ Re-run only the affected Phase 7 checks
+
+Phase 6 changed (integration wiring / integration spec)
+    ├─ Re-run post-integration verification
+    └─ Re-run affected Phase 7 checks
+
+Phases 5 and 7 are verification gates, not origins: a failure there is traced to an origin above,
+and the gate is re-run after the fix.
 ```
 
 #### No Cascade Needed
@@ -246,7 +310,7 @@ Phase 3 changed
 ```
 Phase 4 changed (code-only fix)
     │
-    └─ Fix code + tests, commit, done
+    └─ Fix code + tests, re-verify (Phase 5), commit, done
 ```
 
 ### Step 4: Verify Consistency
@@ -366,7 +430,7 @@ Update `state.json` to track the rework:
    {
      "stories": {
        "story-1-favorites-api": {
-         "status": "code_spec",  ← Regressed from "implementation"
+         "status": "code_spec",  ← Regressed from "implementation_complete"
          "current_task": "Rework: [description]"
        }
      }
@@ -446,7 +510,7 @@ When multiple developers are working on different stories and rework is needed:
 {
   "stories": {
     "story-1-api": {
-      "status": "implementation",
+      "status": "implementation_complete",
       "blocked_by_rework": null
     },
     "story-2-data-model": {

@@ -17,7 +17,7 @@ Phase 7 works through the `2b-acceptance.md` checklist systematically:
 ## When This Phase Runs
 
 Phase 7 begins after Phase 6 (Integration) is complete:
-- All stories have status `integrated`
+- All stories have status `integrated` or `completed` (including the `type: "integration"` story)
 - Full test suite passes
 - Linter is clean
 - User has confirmed readiness to proceed
@@ -41,6 +41,7 @@ Parse all items and categorize by type:
 - `agent-automatable` — agent runs these directly
 - `human-ui` — human performs these in the browser
 - `human-verify` — agent triggers, human confirms result
+- `security` — from Category 4 (Security Scenarios) of the checklist; each carries a **Mode** (`agent-automatable`, `human-ui`, or `human-verify`) that tells you how to execute it (run per Mode in Steps AC2/AC3, and also report it in the security count). Failures are **blocking** unless the user accepts documented risk
 
 Report to user:
 ```
@@ -49,6 +50,7 @@ Report to user:
   agent-automatable: {N} items (I'll run these)
   human-ui:          {N} items (you'll perform these)
   human-verify:      {N} items (I'll trigger, you confirm)
+  security:          {N} items (blocking unless risk accepted)
 
 Starting with automated checks now."
 ```
@@ -164,6 +166,12 @@ verified, integrated, and accepted.
 Marking {feature-name} as completed."
 ```
 
+### Step AC5b: QA / Deployment Clearance (recommended)
+
+Before marking the feature `completed`, run your own security/QA gate for {feature-name} (whatever scanners, dependency audit, and policy checks your team uses) and capture the result as `deployment-clearance.md` or an equivalent clearance artifact in the feature directory. MonkeyMode acceptance confirms functional behavior; the security/QA gate confirms security scanning, dependency audit, and policy compliance.
+
+Do not mark `completed` if the gate reports a BLOCKED status unless the user accepts documented risk.
+
 ### Step AC6: Update State
 
 ```json
@@ -211,6 +219,8 @@ If a Phase 7 failure requires rework, follow `phases/rework.md` to trace the fai
 | UI doesn't match expected behavior | Phase 4 (Implementation) | Fix implementation |
 | Empty state missing | Phase 1A (Discovery) — requirement missed | Add to design, cascade through phases |
 | Performance issue under real load | Phase 1C (Operations) | Update perf spec, re-implement |
+| Security vulnerability (IDOR, injection) | Phase 1C or 3 | Fix design/spec + implementation + add regression test |
+| Critical CVE in dependency | Phase 4 + security/QA gate | Upgrade/replace dependency, re-run SCA |
 
 After rework, re-run Phase 4+ for affected stories, then come back to Phase 7 for re-verification.
 

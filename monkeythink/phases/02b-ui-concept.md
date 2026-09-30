@@ -24,14 +24,14 @@ This phase produces three outputs:
 ## Prerequisites
 
 Before starting, read:
-- `{workspace}/.monkeythink/{topic-name}/state.json` — chosen direction, scope sketch, success criteria
-- `{workspace}/.monkeythink/{topic-name}/framing.md` — who is affected, pain points, opportunity
+- `{workspace}/.monkeythink/{feature-name}/state.json` — chosen direction, scope sketch, success criteria
+- `{workspace}/.monkeythink/{feature-name}/framing.md` — who is affected, pain points, opportunity
 
 ## Output
 
 - `{workspace}/DESIGN.md` — design token file at the workspace root (loaded or generated)
-- `.monkeythink/{topic-name}/ui-concept.canvas.tsx` — Cursor canvas component
-- `.monkeythink/{topic-name}/ui-concept.html` — standalone HTML file
+- `.monkeythink/{feature-name}/ui-concept.canvas.tsx` — Cursor canvas component
+- `.monkeythink/{feature-name}/ui-concept.html` — standalone HTML file
 
 ## Process
 
@@ -184,7 +184,7 @@ radius_md       = rounded.md
 spacing_md      = spacing.md
 ```
 
-These are applied directly as CSS custom properties in the HTML file and as Tailwind arbitrary values in the canvas component.
+These are applied directly as CSS custom properties in the HTML file and as `useHostTheme()` theme tokens in the canvas component (no Tailwind arbitrary values, no hardcoded hex).
 
 ---
 
@@ -278,7 +278,7 @@ export default function FeatureName() {
 3. Slop check: no gradients, no emojis, no box-shadows, no rainbow coloring, no hardcoded hex.
 4. All imports resolve — only `cursor/canvas` exports used, verified against the .d.ts files.
 
-Also save the `.monkeythink/{topic-name}/ui-concept.canvas.tsx` path in the artifacts state for reference, but note in a comment that the live canvas is at the managed canvases path above.
+Also save the `.monkeythink/{feature-name}/ui-concept.canvas.tsx` path in the artifacts state for reference, but note in a comment that the live canvas is at the managed canvases path above.
 
 #### Standalone HTML (`ui-concept.html`)
 
@@ -360,7 +360,9 @@ After generating all three files:
    - If color or font changes are requested, update `DESIGN.md` first, then re-derive tokens and update both files
    - Re-present with a summary of what changed
 
-3. If the user approves or says it's good enough:
+3. **Optional hand-off to `@prototype`:** After presenting the sketch, mention once that if the user wants several side-by-side design variants, or a clone of an existing production page, they can run `@prototype` for this feature. This is an offer only — the inline canvas/HTML sketch above stays the default path, and nothing here blocks on `@prototype`. If the user accepts, tell them to invoke `@prototype` with the feature name and the chosen direction from `state.json`; the sketch and `DESIGN.md` can be used as its starting input. Then continue with the flow below once they return (or if they decline).
+
+4. If the user approves or says it's good enough:
    - Update state.json: `ui_concept: "completed"`
    - Ask: "Ready to move to [Phase 2c: Risk Challenge / Phase 3: Discovery Brief]?"
 
@@ -375,7 +377,7 @@ Before marking Phase 2b complete:
 - [ ] **In Cursor:** Canvas imports only from `cursor/canvas` — no npm packages, no hardcoded hex colors
 - [ ] **In Cursor:** `useHostTheme()` used for all colors — no hardcoded hex values anywhere
 - [ ] **In Cursor:** SDK exports verified against `~/.cursor/skills-cursor/canvas/sdk/index.d.ts` before use
-- [ ] **Other IDEs:** Canvas file has `'use client'`, single default export, no external npm imports
+- [ ] **Other IDEs:** Canvas file has a single default export, no external npm imports, no `'use client'`
 - [ ] Canvas file uses design tokens (not hardcoded generic colors)
 - [ ] HTML file is fully self-contained (opens in browser with no setup)
 - [ ] HTML file has inline `tailwind.config` with design tokens
@@ -396,17 +398,17 @@ Before marking Phase 2b complete:
 
 ```json
 {
-  "current_phase": "2c",
+  "current_phase": "2c|3",
   "phase_status": {
     "ui_concept": "completed"
   },
   "artifacts": {
     "design_md": "{workspace}/DESIGN.md",
     "ui_concept_canvas": "~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx",
-    "ui_concept_canvas_reference": ".monkeythink/{topic-name}/ui-concept.canvas.tsx",
-    "ui_concept_html": ".monkeythink/{topic-name}/ui-concept.html"
+    "ui_concept_canvas_reference": ".monkeythink/{feature-name}/ui-concept.canvas.tsx",
+    "ui_concept_html": ".monkeythink/{feature-name}/ui-concept.html"
   }
 }
 ```
 
-If risk challenge is disabled (`risk_challenge_enabled` is `false`), set `current_phase: "3"` instead.
+Set `current_phase: "2c"` when `risk_challenge_enabled` is `true`; otherwise set `risk_challenge: "skipped"` and `current_phase: "3"`.

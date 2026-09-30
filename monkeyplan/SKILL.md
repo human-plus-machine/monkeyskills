@@ -13,13 +13,13 @@ This skill guides the creation of structured Product Requirements Trackers, UX i
 **User invokes:** `@monkeyplan for [feature]`
 
 **Agent guides through:**
-1. **Phase 0: Intake** — Structured interview or existing document import to gather all context before generation *(skippable if input is already detailed)*
+1. **Phase 0: Intake** — Structured interview, existing document import, or auto-detected upstream artifact (a `@scope` blueprint, an `@explore` design, or a `@monkeythink` discovery brief) to gather all context before generation *(skippable if input is already detailed)*
 2. **Phase 1A: PRT Draft** — Generate a 10-section PRT from intake data
 3. **Phase 1B: PRT Review** — Section-by-section review with user, refine flagged sections, quality check
 4. **Phase 2: UX Ideation** — Map requirements to design system components, define user journeys, produce framework-specific prototype spec (UI-facing features only)
 5. **Phase 3: Epic Breakdown** — Decompose the PRT into independently deliverable, Jira-ready epics with minimal cross-epic dependencies and standalone user value *(optional — skipped if user declines)*
 
-**Optional handoff:** After the final phase, the agent offers to initialize MonkeyMode by placing the PRT as context for Phase 1A (Design Discovery), skipping questions the PRT already answered.
+**Optional handoff:** After the final phase, the agent offers to initialize `@monkeymode` by placing the PRT as context for Phase 1A (Design Discovery), skipping questions the PRT already answered. For a small change, `@monkeytriage` can route to `@monkeymode-lite` instead.
 
 ## Workspace Setup
 
@@ -128,7 +128,7 @@ The agent MUST create and maintain this file at `{workspace}/.monkeyplan/{featur
     "tracker_upload": "not_started|completed|skipped"
   },
   "intake": {
-    "entry_point": "interview|import|direct",
+    "entry_point": "interview|import|direct|monkeythink|scope|explore",
     "status": "not_started|in_progress|completed",
     "scope_type": null,
     "problem_statement": null,
@@ -166,8 +166,6 @@ The agent MUST create and maintain this file at `{workspace}/.monkeyplan/{featur
 }
 ```
 
-**Legacy `state.json`:** If a file still has `forge_handoff` and `forge_path`, rename them to `monkeymode_handoff` and `monkeymode_path` (same object shape) and drop the old keys.
-
 ### Workspace Artifact Structure
 
 All generated files go in the **user's workspace** (NOT in the skills directory):
@@ -178,6 +176,12 @@ All generated files go in the **user's workspace** (NOT in the skills directory)
 │   └── {feature-name}/
 │       ├── state.json          # State tracking (agent creates this)
 │       ├── qa-log.md           # OPTIONAL: Q&A log (only if user opts in)
+│       ├── discovery-brief.md  # OPTIONAL: Copy placed here by @monkeythink (triggers Path C auto-detect)
+│       ├── blueprint.md        # OPTIONAL: Copy placed here by @scope (triggers Path D auto-detect)
+│       ├── DESIGN.md           # OPTIONAL: Design token file copied here by @monkeythink (read by Phase 2 if present)
+│       ├── explore-handoff.json # OPTIONAL: Placed here by @explore (triggers Path E auto-detect)
+│       ├── explore-design/     # OPTIONAL: Technical design files copied here by @explore (Path E)
+│       ├── explore-reference/  # OPTIONAL: @explore decision / options / iteration log (Path E)
 │       ├── prt.md              # Phase 1 output: Product Requirements Tracker
 │       ├── ux-ideation.md      # Phase 2 output: UX Ideation + Prototype Spec
 │       └── epic-breakdown.md   # Phase 3 output: Jira-ready epic decomposition (optional)
@@ -245,7 +249,7 @@ After the final phase completes (and tracker upload has been offered if Phase 3 
 
 1. Ask the user:
    ```
-   "Would you like to hand this off to MonkeyMode for implementation?
+   "Would you like to hand this off to MonkeyMode (@monkeymode) for implementation?
    I'll copy the PRT (and epic breakdown, if generated) to .monkeymode/{feature-name}/
    so MonkeyMode Phase 1A can use them as context and skip questions already answered here.
 
@@ -259,6 +263,8 @@ After the final phase completes (and tracker upload has been offered if Phase 3 
 4. Announce (adjust based on what was copied):
    - If epic breakdown was included: "PRT and epic breakdown copied to .monkeymode/{feature-name}/. When you're ready, invoke @monkeymode for {feature-name} (or run `/monkeymode for {feature-name}`) and it will load them as context."
    - If PRT only: "PRT copied to .monkeymode/{feature-name}/prt.md. When you're ready, invoke @monkeymode for {feature-name} (or run `/monkeymode for {feature-name}`) and it will load the PRT as context."
+
+**Optional:** If the workspace has no `design-context.md` yet, mention that `@design-context` can capture the architecture and stack context before `@monkeymode` starts. For engineering-led exploration of a technical approach beforehand, `@explore` and `@scope` produce artifacts this skill imports in Phase 0 (Paths E and D).
 
 ### Team Consumption Modes
 
@@ -352,7 +358,7 @@ For all UI-facing PRTs, apply design system details in Section 6 (UI/UX Requirem
 
 The agent should read these files from the skills directory for detailed methodology:
 
-- **Phase 0 (Intake):** Read `phases/00-intake.md` — Guided interview sequence, document import flow, intake data schema
+- **Phase 0 (Intake):** Read `phases/00-intake.md` — Blueprint auto-detect (Path D from `@scope`), explore design auto-detect (Path E from `@explore`), discovery-brief auto-detect (Path C from `@monkeythink`), guided interview sequence, document import flow, delivery phase detection, codebase dependency scan, intake data schema
 - **Phase 1 (PRT):** Read `phases/01-prt.md` — PRT draft generation (1A), section-by-section review (1B), prioritization heuristics, quality checklist
 - **Phase 2:** Read `phases/02-ux-ideation.md` — UX ideation, component mapping, framework-specific prototype spec (UI-facing only)
 - **Phase 3:** Read `phases/03-epic-breakdown.md` — Epic decomposition, vertical slicing, dependency mapping, Jira-ready output

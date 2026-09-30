@@ -19,21 +19,41 @@ Phase 0 front-loads all discovery so Phase 1A can generate in a single pass with
 
 ## Entry Points
 
-Phase 0 begins by **checking for a BRD**, then presenting a welcome message.
+Phase 0 begins by **checking for upstream artifacts**, then presenting a welcome message.
 
-### BRD Detection (Path C Check)
+### Blueprint Detection (Path D Check — highest priority)
 
-Before presenting the welcome message, check for a BRD from the Ideate skill:
+Before any other check, look for a technical blueprint from the `@scope` skill:
 
 ```
-Read {workspace}/.monkeyplan/{feature-name}/brd.md
+Read {workspace}/.monkeyplan/{feature-name}/blueprint.md
 ```
 
-**If the file exists:** Skip the welcome message and go directly to [Path C: BRD Import](#path-c-brd-import).
+**If the file exists:** Skip the welcome message and go directly to [Path D: Blueprint Import](#path-d-blueprint-import).
 
-**If the file does not exist:** Present the welcome message below.
+### Explore Design Detection (Path E Check — after Path D, before Path C)
 
-### Welcome Message (when no BRD is present)
+If no blueprint is found, check for a technical design handoff from the `@explore` skill:
+
+```
+Read {workspace}/.monkeyplan/{feature-name}/explore-handoff.json
+```
+
+**If the file exists** (and `explore-design/design.md` is present): Skip the welcome message and go directly to [Path E: Explore Design Import](#path-e-explore-design-import).
+
+### Discovery Brief Detection (Path C Check)
+
+If neither a blueprint nor an explore handoff is found, check for a discovery brief from the `@monkeythink` skill:
+
+```
+Read {workspace}/.monkeyplan/{feature-name}/discovery-brief.md
+```
+
+**If the file exists:** Skip the welcome message and go directly to [Path C: Discovery Brief Import](#path-c-discovery-brief-import).
+
+**If none of these files exist:** Present the welcome message below.
+
+### Welcome Message (when no upstream artifact is present)
 
 ```
 "Welcome to MonkeyPlan. I'll help you create a structured Product Requirements Tracker.
@@ -48,7 +68,7 @@ Store the choice in state:
 ```json
 {
   "intake": {
-    "entry_point": "interview|import|direct|ideate",
+    "entry_point": "interview|import|direct|monkeythink|scope|explore",
     "status": "in_progress"
   }
 }
@@ -182,9 +202,10 @@ If the user wants changes, update the relevant fields and re-present the summary
 
 Once the user approves the summary:
 1. Save intake data to state.json under `intake` object
-2. Mark `intake.status: "completed"`
-3. Proceed to Initial Preferences Setup (PRT depth, Q&A logging, UI-facing, framework) — see the "Initial Preferences Setup" section in `SKILL.md`
-4. Then proceed to Phase 1A — the agent uses the intake data as its source material instead of asking clarifying questions
+2. Run the **Codebase Dependency Scan** (see section below) if applicable
+3. Mark `intake.status: "completed"`
+4. Proceed to Initial Preferences Setup (Q&A logging, UI-facing, framework) — see the "Initial Preferences Setup" section in `SKILL.md`
+5. Then proceed to Phase 1A — the agent uses the intake data as its source material instead of asking clarifying questions
 
 ---
 
@@ -249,20 +270,22 @@ Ask gaps one at a time, max 3 per message.
 
 Once the user approves the extraction:
 1. Save extracted data to state.json under `intake` object, with `entry_point: "import"` and `source_document: "inline|filepath"`
-2. Mark `intake.status: "completed"`
-3. Proceed to Initial Preferences Setup (PRT depth, Q&A logging, UI-facing, framework) — see the "Initial Preferences Setup" section in `SKILL.md`
-4. Then proceed to Phase 1A — the agent uses extracted data as source material
+2. Run **Delivery Phase Detection** (see section below) — detect phases in the source and, if present, ask which phase to build now
+3. Run the **Codebase Dependency Scan** (see section below) if applicable
+4. Mark `intake.status: "completed"`
+5. Proceed to Initial Preferences Setup (Q&A logging, UI-facing, framework) — see the "Initial Preferences Setup" section in `SKILL.md`
+6. Then proceed to Phase 1A — the agent uses extracted data (scoped to the active delivery phase) as source material
 
 ---
 
-## Path C: BRD Import
+## Path C: Discovery Brief Import
 
-For users who have completed the `@ideate` skill and have a BRD at `.monkeyplan/{feature-name}/brd.md`. This path auto-populates intake fields from the BRD and skips redundant questions.
+For users who have completed the `@monkeythink` skill and have a discovery brief at `.monkeyplan/{feature-name}/discovery-brief.md`. This path auto-populates intake fields from the discovery brief and skips redundant questions.
 
-### Step 1: Announce BRD Found
+### Step 1: Announce Discovery Brief Found
 
 ```
-"I found a BRD at .monkeyplan/{feature-name}/brd.md from the Ideate skill.
+"I found a discovery brief at .monkeyplan/{feature-name}/discovery-brief.md from the MonkeyThink skill.
 I'll use it to populate the intake fields — you won't need to answer questions already covered there.
 
 Let me extract the relevant information..."
@@ -270,9 +293,9 @@ Let me extract the relevant information..."
 
 ### Step 2: Extract and Map to Intake Fields
 
-Read the BRD and map each section to PRT intake fields:
+Read the discovery brief and map each section to PRT intake fields:
 
-| BRD Section | PRT Intake Field |
+| Discovery Brief Section | PRT Intake Field |
 |------------------------|-----------------|
 | Problem Statement | `intake.problem_statement` |
 | Who Is Affected → Primary users | `intake.users` |
@@ -288,8 +311,8 @@ Also store:
 ```json
 {
   "intake": {
-    "entry_point": "ideate",
-    "source_document": ".monkeyplan/{feature-name}/brd.md"
+    "entry_point": "monkeythink",
+    "source_document": ".monkeyplan/{feature-name}/discovery-brief.md"
   }
 }
 ```
@@ -297,7 +320,7 @@ Also store:
 ### Step 3: Present Extracted Summary
 
 ```
-"Here's what I extracted from the BRD:
+"Here's what I extracted from the discovery brief:
 
 **Feature:** {feature_name}
 **Problem:** {problem_statement — 1-2 sentences}
@@ -309,7 +332,7 @@ Also store:
 **Out of scope:** {out_of_scope items}
 **Constraints:** {constraints or 'None identified'}
 
-**Open questions from the ideation session:**
+**Open questions from the MonkeyThink session:**
 {gaps_identified — as bullet list, or 'None'}
 
 Does this look right? I'll use this as the foundation for generating your PRT.
@@ -322,9 +345,9 @@ These open questions will be flagged as [ASSUMPTION] items in the PRT.
 
 ### Step 4: Fill Open Questions (if user chooses option 3)
 
-For each open question from the BRD, ask a targeted question:
+For each open question from the discovery brief, ask a targeted question:
 ```
-"The ideation session left this unresolved: '{open question}'.
+"The MonkeyThink session left this unresolved: '{open question}'.
 
 {targeted follow-up question to resolve it}"
 ```
@@ -335,20 +358,317 @@ Ask questions one at a time, max 3 per message.
 
 Once the user approves:
 1. Save extracted data to state.json under `intake` object
-2. Mark `intake.status: "completed"` and `intake.completed_at` with current timestamp
-3. Proceed to Initial Preferences Setup — see the "Initial Preferences Setup" section in `SKILL.md`
-4. Then proceed to Phase 1A — intake data from the BRD serves as source material
+2. Run **Delivery Phase Detection** (see section below) — detect delivery phases in the discovery brief; if present, ask which phase to build now
+3. Run the **Codebase Dependency Scan** (see section below) if applicable
+4. Mark `intake.status: "completed"` and `intake.completed_at` with current timestamp
+5. Proceed to Initial Preferences Setup — see the "Initial Preferences Setup" section in `SKILL.md`
+6. Then proceed to Phase 1A — intake data from the discovery brief serves as source material
 
-**Note:** The BRD's "Risks Acknowledged" section should be referenced in PRT Section 10 (Risks/Dependencies). The agent should proactively include these risks rather than waiting for the user to mention them.
+**Note:** The discovery brief's "Risks Acknowledged" section should be referenced in PRT Section 10 (Risks/Dependencies). The agent should proactively include these risks rather than waiting for the user to mention them.
 
 ---
+
+## Path D: Blueprint Import
+
+For features that have completed the `@scope` skill and have a blueprint at `.monkeyplan/{feature-name}/blueprint.md`. This path pre-fills the richest intake possible — epic sizing, dependency mapping, scope boundaries, and PM questions are all already resolved.
+
+### Step 1: Announce Blueprint Found
+
+```
+"I found a technical blueprint at .monkeyplan/{feature-name}/blueprint.md from the @scope skill
+(Eng + Product + Design have already signed off on this).
+I'll use it to populate intake — you won't need to answer questions already covered there.
+
+Let me extract the relevant information..."
+```
+
+### Step 2: Extract and Map to Intake Fields
+
+Read the blueprint and map each section to PRT intake fields:
+
+| Blueprint Section | PRT Intake Field |
+|-------------------|-----------------|
+| §1.1 Conceptual Architecture | `intake.additional_context` (architecture pattern + justification) |
+| §1.2 Core Components | `intake.additional_context` (component list with org + team ownership) |
+| §1.3 Data Flow | `intake.additional_context` (data flow narrative) |
+| §1.4 Data Storage Strategy | `intake.additional_context` (storage recommendations) |
+| §2.1 Candidate Epics + sizes + owning org/team | `intake.additional_context` (seeds Phase 3 epic breakdown, grouped by owning org; tag `[BLUEPRINT-EPICS]`) |
+| §2.3 Most Complex Epic | `intake.additional_context` (schedule risk callout) |
+| §3.1 Internal Dependencies | `intake.code_dependencies` (type: `integration_point`; carry org + owning team; tag `[BLUEPRINT-DEP]`) |
+| §3.2 External Dependencies | `intake.code_dependencies` (type: `integration_point`; tag `[BLUEPRINT-DEP]`) |
+| §3.3 Blocking Dependencies | `intake.code_dependencies` (type: `integration_point`; mark `blocking: true`; tag `[BLUEPRINT-BLOCKING]`) |
+| §3.4 Impacted Teams | `intake.impacted_teams` (one entry per row: org, team, why involved, repos, `must_join_planning`, confidence; tag `[BLUEPRINT-TEAMS]`) |
+| §3.5 Per-Org Scopes + cross-org table | `intake.additional_context` (one slice per org — outcome, its epics, its repos, what it needs from other orgs; tag `[BLUEPRINT-ORG-SCOPE]`) |
+| §4.2 Questions for the PM | `intake.gaps_identified` (each question becomes an open item for PRT Section 10) |
+| §5.1 Technical Assumptions | `intake.additional_context` (tagged `[BLUEPRINT-ASSUMPTION]`) |
+| §5.2 NOT in Phase 1 (boundaries) | `intake.out_of_scope` (each exclusion tagged `[BLUEPRINT-BOUNDARY]`) |
+| §5.3 Pending PRT inputs | `intake.gaps_identified` (any `status: pending` items) |
+
+Also store:
+```json
+{
+  "intake": {
+    "entry_point": "scope",
+    "source_document": ".monkeyplan/{feature-name}/blueprint.md"
+  }
+}
+```
+
+### Step 3: Present Extracted Summary
+
+```
+"Here's what I extracted from the technical blueprint:
+
+**Architecture:** {pattern from §1.1}
+**Key components:** {top 3-4 components with owning org/team from §1.2}
+**Orgs / teams in scope ({count}):** {from §3.4 — mark those with must_join_planning}
+**Candidate epics ({N} total):** {list from §2.1 with sizes, grouped by owning org}
+**Most complex epic:** {from §2.3}
+**Dependencies:**
+  - Internal ({count}): {list with org + team}
+  - External ({count}): {list}
+  - Blocking ({count}): {list with unblock conditions}
+  - Cross-org blockers ({count}): {from §3.5 — from-org → to-org, blocking only}
+**Out of scope (Phase 1):** {boundaries from §5.2}
+**Open questions for you (PM):** {from §4.2 and §5.3 pending items}
+
+The candidate epics will seed Phase 3's epic breakdown, grouped by owning org so
+work isn't collapsed into one team. Dependency, blocking, and impacted-team
+information will appear in PRT Section 10 (and Section 1 Stakeholders).
+Scope boundaries from §5.2 will anchor the PRT's Out of Scope section.
+
+Does this look right?
+
+1. Looks good — proceed to preferences and PRT generation
+2. I need to correct something — (tell me what to update)
+3. Review the open PM questions now — I'll walk through each one"
+```
+
+### Step 4: Walk Through PM Questions (if user chooses option 3)
+
+For each gap from §4.2 and any `pending` items from §5.3, ask a targeted question one at a time (max 3 per message). Use the blueprint's "Default if no answer" column to offer a sensible default so the session doesn't block:
+
+```
+"The blueprint flagged this unresolved: '{question}'.
+Default if skipped: '{default from blueprint}'.
+
+{targeted follow-up to get the PM's decision}"
+```
+
+Resolved answers update the relevant intake fields and are added to `qa-log.md`.
+
+### Step 5: Codebase Dependency Scan
+
+When a blueprint is present, the dependency interrogation has already been done by `@scope`. **Skip the codebase dependency scan by default** and set `intake.code_scan: "skipped"`. If the scope type is `enhancement` or `integration`, offer it once:
+
+```
+"The blueprint already covers known dependencies. Want me to also scan the
+codebase for any implementation-level dependencies the blueprint may not
+have captured? (optional — blueprint coverage is usually sufficient)"
+```
+
+If the user declines, set `intake.code_scan: "skipped"` and proceed.
+
+### Step 6: Confirm and Transition
+
+Once the user approves:
+1. Save extracted data to state.json under the `intake` object
+2. Run **Delivery Phase Detection** (see section below) — detect delivery phases in the blueprint or its source document; if present, ask which phase to build
+3. Mark `intake.status: "completed"` and `intake.completed_at` with current timestamp
+4. Proceed to Initial Preferences Setup → Phase 1A
+
+**Note:** Blueprint dependencies tagged `[BLUEPRINT-DEP]` and `[BLUEPRINT-BLOCKING]` are mapped into PRT Section 10 (Dependencies) with their owning org and team and, for blocking deps, their unblock conditions. Phase 3 must attribute each `[BLUEPRINT-DEP]` to an owning epic.
+
+**Multi-org blueprints:** when `[BLUEPRINT-ORG-SCOPE]` slices are present, Phase 3 groups epics by owning org rather than producing one flat list, and preserves the `[BLUEPRINT-EPICS]` org/team tag on each epic it creates. `@scope` already resolved ownership from its sitemap — do not reassign an epic to a different team without telling the user why, and never collapse another org's epics into the locally checked-out team's.
+
+---
+
+## Path E: Explore Design Import
+
+For features that have completed the `@explore` skill and handed off a **technical design** (not a discovery brief). Triggered by `.monkeyplan/{feature-name}/explore-handoff.json` and files under `.monkeyplan/{feature-name}/explore-design/`.
+
+**This is not Path C.** Path C is for the `@monkeythink` discovery brief at `discovery-brief.md`. Do not use discovery-brief section mapping or announce "from the MonkeyThink skill."
+
+### Step 1: Announce Explore Design Found
+
+```
+"I found a technical design from the @explore skill at .monkeyplan/{feature-name}/explore-design/
+(engineering exploration: components, APIs, data model, interactions).
+I'll extract intake from that design — not from a product discovery brief.
+
+Let me read the explore design files..."
+```
+
+Read all files under `explore-design/` and `explore-reference/decision.md`.
+
+### Step 2: Extract and Map to Intake Fields
+
+| Explore Design File | PRT Intake Field |
+|---------------------|------------------------------|
+| `design.md` — problem, goals, overview | `problem_statement`, `business_goals`, `additional_context` |
+| `design.md` — non-goals | `out_of_scope` |
+| `components.md` | `additional_context` (architecture/components; tag `[EXPLORE-COMPONENTS]`) |
+| `interactions.md` | `additional_context` (flows; tag `[EXPLORE-FLOWS]`) |
+| `api.md` | `additional_context` (contracts; tag `[EXPLORE-API]`) |
+| `data.md` | `additional_context` (data model; tag `[EXPLORE-DATA]`) |
+| `explore-reference/decision.md` — chosen direction | `additional_context` (tag `[EXPLORE-DECISION]`) |
+| `explore-reference/decision.md` — rejected options | `out_of_scope` or `additional_context` |
+| `design.md` — open questions | `gaps_identified` |
+
+Infer `scope_type` from the design (default `new_feature` or `enhancement` if modifying existing systems).
+
+Store:
+```json
+{
+  "intake": {
+    "entry_point": "explore",
+    "source_document": ".monkeyplan/{feature-name}/explore-design/design.md"
+  }
+}
+```
+
+### Step 3: Present Extracted Summary
+
+Use the same confirmation pattern as Path B (Import Existing Document) — show extracted fields, gaps, and ask:
+1. Looks good — proceed
+2. Correct something
+3. Fill gaps now
+
+### Step 4: Confirm and Transition
+
+Follow Path B after approval:
+1. Save `intake` to state.json
+2. Run **Delivery Phase Detection** if the explore design mentions phasing
+3. Run **Codebase Dependency Scan** (recommended for explore handoffs — design may not list all code-level deps)
+4. Mark `intake.status: "completed"`
+5. Proceed to Initial Preferences Setup → Phase 1A
+
+**Note:** POC code under `pocs/` is reference only — do not treat it as production scope. Link to it in PRT risks/assumptions if relevant.
+
+---
+
+## Delivery Phase Detection (Phased Source Documents)
+
+**Purpose:** Imported documents (PRDs, discovery briefs, roadmaps) frequently describe the work as **delivery phases** — Phase 1 / MVP now, Phase 2 / Phase 3 later. Without phase awareness, PRT flattens everything into one undifferentiated scope and breaks down future roadmap work as if it were immediate. This step detects those delivery phases and asks the user **which phase to build now**, so the PRT and epic breakdown stay scoped to the immediate phase while future phases are preserved as roadmap.
+
+> **Terminology:** "Delivery phase" / "milestone" here means a *product roadmap phase* in the source document (e.g., "Phase 1 — MVP"). This is distinct from the MonkeyPlan skill's own workflow Phases (0–3).
+
+### When to Run
+
+Run this step in **Path B (Import)**, **Path C (Discovery Brief Import)**, and **Path E (Explore Design Import)**, immediately after the extraction summary and before the Codebase Dependency Scan. Skip it for **Path A (Guided Interview)** unless the user describes their own phasing during the interview.
+
+### Step 1: Detect Phases in the Source
+
+Scan the imported document for delivery-phase signals:
+- Explicit headings or labels: "Phase 1", "Phase 2", "MVP", "V1 / V2", "Milestone 1", "Now / Next / Later", "Fast-follow"
+- Roadmap or timeline sections that group capabilities by release
+- Scope language like "in the first release… / later we will…"
+
+**If no phases are detected:** set `intake.delivery_phases` to `[]` and `intake.active_phase` to `null`, then continue to the Codebase Dependency Scan (single-phase feature — normal flow).
+
+### Step 2: Present Detected Phases and Ask Which to Build
+
+If phases are detected, present them and ask the user to choose the active phase:
+
+```
+"This document describes the work in delivery phases:
+
+| Phase | Name | Summary | Items |
+|-------|------|---------|-------|
+| 1 | {phase 1 name} | {1-line summary} | {count of features/stories} |
+| 2 | {phase 2 name} | {1-line summary} | {count} |
+| 3 | {phase 3 name} | {1-line summary} | {count} |
+
+Which phase would you like to work on now? I'll build the PRT and epic breakdown for that phase, and keep the others as roadmap (if you sync to a tracker, future phases can become placeholder parent items for planning).
+
+1. Phase 1 ({name})
+2. Phase 2 ({name})
+3. Phase 3 ({name})
+4. All phases — treat as a single scope (no phasing)"
+```
+
+### Step 3: Record the Selection
+
+- Store all detected phases in `intake.delivery_phases[]` with `phase`, `name`, `summary`, `is_active`, and the `items` (features/stories) belonging to each.
+- Set `intake.active_phase` to the chosen phase number (or `null` if the user picked "All phases").
+- Mark the chosen phase `is_active: true`; all others `is_active: false`.
+- Populate `intake.in_scope` from the **active phase's** items; move future-phase items into `intake.out_of_scope` annotated as `[ROADMAP — Phase N]` so they are visible but not built now.
+
+The active phase drives PRT generation (Phase 1A) and epic breakdown (Phase 3); future phases are carried as roadmap and can become placeholder parent items at tracker-sync time.
+
+---
+
+## Codebase Dependency Scan (Code-Aware Intake)
+
+**Purpose:** Surface technical dependencies the PM does not know to mention. Interview, import, and discovery-brief intake all capture dependencies from human knowledge only — they miss the ones hiding in the existing code (shared services with other consumers, schemas other features read, auth/middleware, feature flags, event producers/consumers). This step makes intake **code-aware** so those dependencies land in the PRT instead of being discovered late during implementation.
+
+### When to Run
+
+Run this step **after intake data is collected and before Initial Preferences Setup**, in any of these cases:
+- `intake.scope_type` is `"enhancement"` or `"integration"` — **always run** (these extend existing systems by definition)
+- `intake.scope_type` is `"new_feature"`, `"internal_tooling"`, or `"other"` — **offer it**, run only if the user accepts
+
+**Skip entirely (do not offer) when:**
+- The workspace is not a code repository (no source files — e.g. a docs-only or empty workspace), OR
+- The user is a legacy/PM-only consumer who has no code access
+
+If skipping, set `intake.code_scan: "skipped"` and continue. Never block intake on this step.
+
+### How to Run
+
+1. **Identify search targets** from the intake data: system/service/API names, data sources, module or feature names mentioned in `problem_statement`, `in_scope`, `additional_context`, and (Integration scope) the systems being connected.
+
+2. **Search the codebase** for each target using `Glob` (find files/modules by name) and `Grep` (find references, callers, imports, route definitions, schema/table names, event names). For promising hits, `Read` the relevant file to confirm what it is and who depends on it.
+
+3. **Classify each finding** as one of:
+   - **Existing consumer** — code that already calls/imports the system this feature touches (changing it may break them)
+   - **Shared resource** — schema, table, model, config, or feature flag read/written by more than this feature
+   - **Integration point** — internal service boundary or external API the feature must connect through
+   - **Reuse opportunity** — existing component/util/endpoint the feature can build on instead of duplicating
+
+4. **Record findings** in `intake.code_dependencies` (see schema below). Keep each finding to one line: what it is, the file path, and why it matters.
+
+### Present Findings to User
+
+```
+"I scanned the codebase for systems this feature touches. Here's what I found that may not be in your notes:
+
+**Existing consumers (changing these may affect others):**
+- {finding} ({path})
+
+**Shared resources:**
+- {finding} ({path})
+
+**Integration points:**
+- {finding} ({path})
+
+**Reuse opportunities:**
+- {finding} ({path})
+
+I'll add these to the PRT's Dependencies and Data/Integrations sections, tagged [CODE-DERIVED] so reviewers know they came from the code, not the interview.
+
+1. Looks right — include these
+2. Adjust — (tell me what to drop or correct)"
+```
+
+If the scan finds nothing relevant, note that explicitly ("No existing code dependencies found for the named systems") and set `intake.code_scan: "completed"` with an empty `code_dependencies` list — do not fabricate dependencies.
+
+### After the Scan
+
+1. Save findings to `intake.code_dependencies` and set `intake.code_scan: "completed"` (or `"skipped"`)
+2. Proceed to Initial Preferences Setup → Phase 1A
+3. Phase 1A maps `code_dependencies` into PRT Section 7 (Data/Integrations) and Section 10 (Dependencies), each tagged `[CODE-DERIVED]`
+
+---
+
+### Intake State Schema
 
 The intake object stored in state.json:
 
 ```json
 {
   "intake": {
-    "entry_point": "interview|import|direct|ideate",
+    "entry_point": "interview|import|direct|monkeythink|scope|explore",
     "status": "not_started|in_progress|completed",
     "scope_type": "new_feature|enhancement|internal_tooling|integration|other",
     "problem_statement": "string",
@@ -360,6 +680,34 @@ The intake object stored in state.json:
     "additional_context": "string|null",
     "source_document": "inline|filepath|null",
     "gaps_identified": ["string"],
+    "delivery_phases": [
+      {
+        "phase": 1,
+        "name": "string (e.g., MVP)",
+        "summary": "string",
+        "is_active": true,
+        "items": ["string (feature/story belonging to this phase)"]
+      }
+    ],
+    "active_phase": "integer|null (null = no phasing / all phases)",
+    "code_scan": "not_started|completed|skipped",
+    "code_dependencies": [
+      {
+        "type": "existing_consumer|shared_resource|integration_point|reuse_opportunity",
+        "description": "string",
+        "path": "string (file or module path)"
+      }
+    ],
+    "impacted_teams": [
+      {
+        "org": "string",
+        "team": "string|UNKNOWN",
+        "why_involved": "string",
+        "repos": ["string"],
+        "must_join_planning": true,
+        "confidence": "high|medium|low"
+      }
+    ],
     "completed_at": "ISO8601 timestamp"
   }
 }

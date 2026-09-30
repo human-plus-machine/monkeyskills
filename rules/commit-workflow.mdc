@@ -19,8 +19,10 @@ alwaysApply: false
 
 <optional body>
 
-Co-Authored-By: Claude <noreply@anthropic.com>
+<trailer per the commit skill>
 ```
+
+Follow the `commit` skill's trailer conventions (it defines the exact trailer line); do not hardcode a specific model or assistant name here.
 
 Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 

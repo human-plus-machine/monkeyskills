@@ -7,7 +7,7 @@ description: Phase 1B - Detailed Contracts. Guides API design, integration point
  
 ## Purpose
 Define how components communicate and how the system will be tested.
- 
+
 ## Output
 A technical specification document (~400 lines) that defines:
 - All API endpoints with requests, responses, and errors
@@ -29,20 +29,43 @@ Before documenting individual endpoints, define shared patterns to avoid duplica
 ##### Authentication & Authorization
 ```markdown
 ### Authentication
-- **Method**: Firebase JWT tokens in `Authorization: Bearer {token}` header
+- **Method**: OIDC-issued JWT bearer tokens in `Authorization: Bearer {token}` header
 - **Headers Required**:
-  - `Authorization: Bearer {token}` - Firebase JWT token
+  - `Authorization: Bearer {token}` - OIDC JWT access token
   - `X-Tenant-Id: {tenant_id}` - Multi-tenancy identifier
-  - `X-Identity-Provider-Type: firebase` - Identity provider type
-- **Token Validation**: Every request validates token against Firebase Auth
+  - `X-Identity-Provider: example-idp` - Identity provider identifier (only if multiple providers are supported)
+- **Token Validation**: Every request validates token signature, issuer, and audience against the identity provider's JWKS endpoint
 - **Token Expiration**: Tokens expire after 1 hour
-- **Refresh Strategy**: Client refreshes token using Firebase SDK
+- **Refresh Strategy**: Client refreshes token using the identity provider's SDK (refresh-token flow)
  
 ### Authorization
 - **User Scope**: Users can only access their own resources unless admin role
 - **Admin Role**: Can access any user's resources (for support)
 - **Service-to-Service**: API keys for service authentication
 - **Resource Ownership**: Validated via `user_id` in database matches authenticated user
+```
+
+##### Security Contract Patterns
+```markdown
+### Input & Output Safety
+- All request fields: explicit type, max length, allowed character set, required/optional
+- Use allowlists for enums — never accept arbitrary strings where a fixed set exists
+- Response schemas: never expose internal IDs, stack traces, or fields the caller is not authorized to see
+- Mass-assignment protection: document explicit field allowlists per endpoint
+
+### Authorization Matrix (required for every mutating/list endpoint)
+| Endpoint | Role / Scope | Allowed | Denied (expect 403) |
+|----------|--------------|---------|---------------------|
+| POST /api/v1/favorites | user (own) | Add own favorite | Add for another user_id |
+| GET /api/v1/favorites/{id} | user (owner) | Read own | Read another user's favorite |
+
+### Rate Limiting & Abuse
+- Document per-endpoint limits AND abuse scenarios (enumeration, credential stuffing, bulk scraping)
+- Idempotency keys for sensitive write operations where applicable
+
+### External Calls
+- SSRF prevention: allowlisted hosts/schemes only; no user-controlled URLs without validation
+- Timeouts, TLS verification, and credential storage pattern documented per dependency
 ```
  
 ##### Common Error Responses
@@ -301,6 +324,26 @@ For each endpoint:
 - [ ] Event schema validation (JSON Schema)
 - [ ] Consumer contract tests (Pact or similar)
 ```
+
+#### Security Testing
+```markdown
+**Scope:** Verify security controls defined in Phase 1C and Authorization Matrix above
+
+**Required Security Test Categories:**
+- [ ] Authorization matrix tests (horizontal + vertical privilege escalation)
+- [ ] Authentication boundary tests (missing/expired/invalid token → 401)
+- [ ] Input validation tests (oversized payload, malformed UUID, injection strings)
+- [ ] Rate limit / abuse scenario tests where defined in 1C
+- [ ] Sensitive data not in logs or error responses (contract-level assertion)
+- [ ] Contract tests for security headers on HTTP responses (if applicable)
+
+**Key Security Scenarios:**
+| Scenario | Components | Expected Outcome |
+|----------|------------|------------------|
+| IDOR attempt | API → Auth → Service | 403 Forbidden |
+| Unauthenticated access | API → Auth middleware | 401 Unauthorized |
+| Oversized payload | API → Validation | 422 Validation Error |
+```
  
 #### Load/Performance Testing
 ```markdown
@@ -437,7 +480,10 @@ For each endpoint:
  
 ### Contract Testing
 [API and event contract validation]
- 
+
+### Security Testing
+[Authorization matrix, auth boundaries, input validation, rate limiting, header checks]
+
 ### Load/Performance Testing
 [Tools, scenarios, success criteria]
  
@@ -455,12 +501,13 @@ For each endpoint:
 Before moving to Phase 1C, verify:
  
 ### Completeness
-- [ ] Common patterns section defined (auth, errors, pagination, caching)
+- [ ] Common patterns section defined (auth, errors, pagination, caching, security contract patterns)
+- [ ] Authorization matrix defined for all mutating/list endpoints
 - [ ] All API endpoints specified with error cases
 - [ ] Only endpoint-specific errors documented (common errors referenced)
 - [ ] All integration points identified
 - [ ] All events defined with consumers
-- [ ] Testing strategy defined for all layers
+- [ ] Testing strategy defined for all layers (including security testing)
 - [ ] Error response format is standardized
  
 ### Quality
@@ -530,3 +577,5 @@ Phase 1B is complete when:
 - [ ] Testing strategy complete
 - [ ] User approves: "API contracts and integration look good"
 - [ ] Document saved to `.monkeymode/{feature-name}/design/1b-contracts.md`
+
+Critique is optional — only if the user asks; see `{skill_dir}/monkeymode/guides/PHASE-CRITIQUE-LOOP.md`.

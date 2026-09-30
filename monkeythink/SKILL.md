@@ -29,17 +29,17 @@ This skill guides the exploration phase that happens *before* structured require
 
 When `@monkeythink` is invoked, **ALWAYS**:
 
-1. **Extract topic name** from user's request (convert to kebab-case), or ask for one during Phase 0
-2. **Check for state file:** Read `{workspace}/.monkeythink/{topic-name}/state.json`
+1. **Extract the feature name** from the user's request, or ask for one during Phase 0. Derive `{feature-name}` **once** as a lowercase kebab-case slug of the topic (e.g. "AI expense automation" → `ai-expense-automation`) and reuse it unchanged for `.monkeythink/{feature-name}/` and `.monkeyplan/{feature-name}/` (the MonkeyPlan handoff directory)
+2. **Check for state file:** Read `{workspace}/.monkeythink/{feature-name}/state.json`
 3. **If state file doesn't exist:**
-   - Create `.monkeythink/{topic-name}/` directory in workspace
+   - Create `.monkeythink/{feature-name}/` directory in workspace
    - Create initial `state.json` with `current_phase: "0"`
    - Start Phase 0 (Problem Framing) — guided interview
    - After framing completes, ask preferences (see [Initial Preferences Setup](#initial-preferences-setup))
    - Then proceed to Phase 1 (or Phase 1 solo if council disabled)
 4. **If state file exists:**
    - Read current phase and resume from there
-   - Load context (topic name, framing data, council state, etc.)
+   - Load context (feature name, framing data, council state, etc.)
 
 ### Initial Preferences Setup
 
@@ -96,7 +96,7 @@ Store as `context.council_mode: "auto|sequential|manual"`. Default is `"auto"`.
 **Council mode behavior:**
 - `auto` → Attempt parallel Task dispatch. If successful, use parallel mode (full council). If Task tool is unavailable, automatically fall back to `sequential` and notify the user.
 - `sequential` → The orchestrator runs the council brief 3 times in sequence, each time adopting a different persona system prompt (Claude-style, GPT-style, Gemini-style). Honest about the limitation: same underlying model, different reasoning biases.
-- `manual` → Export 3 numbered prompt files to `.monkeythink/{topic-name}/council-prompts/` and pause, waiting for the user to paste responses back.
+- `manual` → Export 3 numbered prompt files to `.monkeythink/{feature-name}/council-prompts/` and pause, waiting for the user to paste responses back.
 
 #### UI Concept (Phase 2b)
 
@@ -145,11 +145,11 @@ Store all preferences in state:
 
 ### State File Schema
 
-The agent MUST create and maintain this file at `{workspace}/.monkeythink/{topic-name}/state.json`:
+The agent MUST create and maintain this file at `{workspace}/.monkeythink/{feature-name}/state.json`:
 
 ```json
 {
-  "topic_name": "string (kebab-case)",
+  "feature_name": "string (kebab-case)",
   "current_phase": "0",
   "phase_status": {
     "framing": "not_started|in_progress|completed",
@@ -176,9 +176,9 @@ The agent MUST create and maintain this file at `{workspace}/.monkeythink/{topic
     "enabled": true,
     "members": ["claude", "gpt", "gemini"],
     "exploration_responses": {
-      "claude": "pending|received|failed",
-      "gpt": "pending|received|failed",
-      "gemini": "pending|received|failed"
+      "claude": "pending|received|failed|skipped",
+      "gpt": "pending|received|failed|skipped",
+      "gemini": "pending|received|failed|skipped"
     },
     "risk_responses": {
       "claude": "pending|received|failed|skipped",
@@ -194,25 +194,25 @@ The agent MUST create and maintain this file at `{workspace}/.monkeythink/{topic
     "constraints": []
   },
   "artifacts": {
-    "framing": ".monkeythink/{topic-name}/framing.md",
+    "framing": ".monkeythink/{feature-name}/framing.md",
     "council_responses": {
-      "claude": ".monkeythink/{topic-name}/council-responses/claude-exploration.md",
-      "gpt": ".monkeythink/{topic-name}/council-responses/gpt-exploration.md",
-      "gemini": ".monkeythink/{topic-name}/council-responses/gemini-exploration.md"
+      "claude": ".monkeythink/{feature-name}/council-responses/claude-exploration.md",
+      "gpt": ".monkeythink/{feature-name}/council-responses/gpt-exploration.md",
+      "gemini": ".monkeythink/{feature-name}/council-responses/gemini-exploration.md"
     },
     "council_risk_responses": {
-      "claude": ".monkeythink/{topic-name}/council-responses/claude-risk.md",
-      "gpt": ".monkeythink/{topic-name}/council-responses/gpt-risk.md",
-      "gemini": ".monkeythink/{topic-name}/council-responses/gemini-risk.md"
+      "claude": ".monkeythink/{feature-name}/council-responses/claude-risk.md",
+      "gpt": ".monkeythink/{feature-name}/council-responses/gpt-risk.md",
+      "gemini": ".monkeythink/{feature-name}/council-responses/gemini-risk.md"
     },
-    "exploration_synthesis": ".monkeythink/{topic-name}/exploration-synthesis.md",
+    "exploration_synthesis": ".monkeythink/{feature-name}/exploration-synthesis.md",
     "design_md": "DESIGN.md",
     "ui_concept_canvas": "~/.cursor/projects/{workspace-id}/canvases/{feature-name}.canvas.tsx",
-    "ui_concept_canvas_reference": ".monkeythink/{topic-name}/ui-concept.canvas.tsx",
-    "ui_concept_html": ".monkeythink/{topic-name}/ui-concept.html",
-    "risk_challenge": ".monkeythink/{topic-name}/risk-challenge.md",
-    "discovery_brief": ".monkeythink/{topic-name}/discovery-brief.md",
-    "qa_log": ".monkeythink/{topic-name}/qa-log.md"
+    "ui_concept_canvas_reference": ".monkeythink/{feature-name}/ui-concept.canvas.tsx",
+    "ui_concept_html": ".monkeythink/{feature-name}/ui-concept.html",
+    "risk_challenge": ".monkeythink/{feature-name}/risk-challenge.md",
+    "discovery_brief": ".monkeythink/{feature-name}/discovery-brief.md",
+    "qa_log": ".monkeythink/{feature-name}/qa-log.md"
   },
   "context": {
     "save_qa_log": true,
@@ -239,15 +239,15 @@ All generated files go in the **user's workspace** (NOT in the skills directory)
 {workspace}/
 ├── DESIGN.md                             # Phase 2b: Design token file (loaded or generated; workspace root)
 ├── .monkeythink/
-│   └── {topic-name}/
+│   └── {feature-name}/
 │       ├── state.json                    # State tracking (agent creates this)
 │       ├── qa-log.md                     # OPTIONAL: Q&A log (only if user opts in)
 │       ├── framing.md                    # Phase 0 output: Structured problem framing
 │       ├── council-responses/
-│       │   ├── claude-exploration.md     # Phase 1: Claude's raw council response (parallel mode)
-│       │   ├── gpt-exploration.md        # Phase 1: GPT's raw council response (parallel mode)
-│       │   ├── gemini-exploration.md     # Phase 1: Gemini's raw council response (parallel mode)
-│       │   └── solo-exploration.md       # Phase 1: Single-agent response (sequential/solo mode)
+│       │   ├── claude-exploration.md     # Phase 1: Claude's raw council response (all council modes; a persona pass in sequential mode)
+│       │   ├── gpt-exploration.md        # Phase 1: GPT's raw council response (all council modes; a persona pass in sequential mode)
+│       │   ├── gemini-exploration.md     # Phase 1: Gemini's raw council response (all council modes)
+│       │   └── solo-exploration.md       # Phase 1: Single-agent response (solo mode, council disabled)
 │       ├── council-prompts/
 │       │   ├── 01-claude-prompt.md       # Phase 1: Exportable prompt for manual mode
 │       │   ├── 02-gpt-prompt.md          # Phase 1: Exportable prompt for manual mode
@@ -259,7 +259,8 @@ All generated files go in the **user's workspace** (NOT in the skills directory)
 │       └── discovery-brief.md           # Phase 3: Handoff artifact for @monkeyplan
 └── .monkeyplan/
     └── {feature-name}/
-        └── discovery-brief.md           # OPTIONAL: Copy placed here if MonkeyPlan handoff accepted
+        ├── discovery-brief.md           # OPTIONAL: Copy placed here if MonkeyPlan handoff accepted
+        └── DESIGN.md                    # OPTIONAL: Copy of the workspace-root DESIGN.md if one exists (read by MonkeyPlan Phase 2)
 ```
 
 ## Phase Flow & State Management
@@ -280,17 +281,17 @@ All generated files go in the **user's workspace** (NOT in the skills directory)
 | `"completed"` | — | Feature complete |
 
 ```
-1. Extract topic name from user's request (convert to kebab-case)
-2. Read {workspace}/.monkeythink/{topic-name}/state.json
+1. Extract feature name from user's request (convert to kebab-case)
+2. Read {workspace}/.monkeythink/{feature-name}/state.json
 3. If file doesn't exist:
-   → Create .monkeythink/{topic-name}/ directory
+   → Create .monkeythink/{feature-name}/ directory
    → Create state.json with current_phase: "0"
    → Start Phase 0 (Problem Framing)
    → After framing: ask preferences (Q&A log, council, risk challenge)
    → Then start Phase 1
 4. If file exists:
    → Read current_phase field
-   → If "completed": Announce topic is done, ask if user wants to revisit or start a new topic
+   → If "completed": Announce the feature is done, ask if user wants to revisit or start a new one
    → Otherwise: Resume from that phase, load context for continuity
 ```
 
@@ -309,9 +310,11 @@ After completing work in a phase:
 
 **Note on Phase 1 → 1b:** This transition is automatic (no user confirmation needed). After council response files are verified on disk, the orchestrator immediately performs synthesis. The user confirmation point is at the end of Phase 1b, before advancing to Phase 2a.
 
-**Note on Phase 2a → 2b:** After Phase 2a (Direction Setting) completes, if `ui_concept_enabled` is `true`, ask user to confirm before generating the UI concept. If `false`, Phase 2b is skipped (`ui_concept` status set to `"skipped"`) and the agent advances to Phase 2c or Phase 3.
+**Routing after Phase 2a (fixed order 2a → 2b → 2c → 3):** Phase 2a decides the risk-challenge question (Step 8: if the user declines, set `context.risk_challenge_enabled: false`). Then: if `ui_concept_enabled` is `true`, ask the user to confirm and go to Phase 2b (`current_phase: "2b"`); if `false`, set `ui_concept: "skipped"`. Next, if `risk_challenge_enabled` is `true`, go to Phase 2c (`current_phase: "2c"`); if `false`, set `risk_challenge: "skipped"`. If both are skipped, go to Phase 3.
 
-**Note on Phase 2b → 2c:** After Phase 2b (UI Concept) completes (or is skipped), if `risk_challenge_enabled` is `true`, ask user to confirm before dispatching the risk challenge council. If `false`, Phase 2c is skipped (`risk_challenge` status set to `"skipped"`) and the agent proceeds to Phase 3.
+**Note on Phase 2b → 2c:** After Phase 2b (UI Concept) completes, if `risk_challenge_enabled` is `true`, ask user to confirm before dispatching the risk challenge council (`current_phase: "2c"`). If `false`, Phase 2c is skipped (`risk_challenge: "skipped"`) and the agent proceeds to Phase 3.
+
+**Note on Phase 2c → 3:** After Phase 2c completes, set `current_phase: "3"`.
 
 ### LLM Council Execution
 
@@ -336,15 +339,17 @@ When executing a council phase (Phase 1 or Phase 2c), the orchestrator selects t
 The orchestrator runs the council brief **3 times in sequence**, each time with a different persona system prompt that biases the LLM toward a different reasoning style. Full methodology in `phases/01-exploration.md` Sequential Fallback section.
 
 Persona roles:
-- **Pass 1 — Analytical (Claude-style):** Structured, systematic, focuses on architecture and correctness
-- **Pass 2 — Pragmatic (GPT-style):** User-focused, outcome-oriented, focuses on adoption and tradeoffs
-- **Pass 3 — Expansive (Gemini-style):** Broad, creative, focuses on adjacent opportunities and non-obvious angles
+- **Pass 1 — Claude-style (analytical):** Structured, systematic, focuses on architecture and correctness
+- **Pass 2 — GPT-style (pragmatic):** User-focused, outcome-oriented, focuses on adoption and tradeoffs
+- **Pass 3 — Gemini-style (expansive):** Broad, creative, focuses on adjacent opportunities and non-obvious angles
+
+Each pass is saved and tracked under its member key (`claude`, `gpt`, `gemini`), exactly as in parallel mode.
 
 Always announce the limitation honestly: *"Running in sequential persona mode — this is one LLM reasoning from three different starting positions, not three genuinely different models. The diversity is stylistic, not architectural."*
 
 #### Manual Mode (any environment, maximum diversity)
 
-The orchestrator generates 3 prompt files in `.monkeythink/{topic-name}/council-prompts/`, each containing the council brief with its persona context. It pauses and instructs the user to run each prompt in a separate tool (ChatGPT, Claude.ai, Gemini.ai) and paste the responses back. Full methodology in `phases/01-exploration.md` Manual Export section.
+The orchestrator generates 3 prompt files in `.monkeythink/{feature-name}/council-prompts/`, each containing the council brief with its persona context. It pauses and instructs the user to run each prompt in a separate tool (ChatGPT, Claude.ai, Gemini.ai) and paste the responses back. Full methodology in `phases/01-exploration.md` Manual Export section.
 
 ### MonkeyPlan Handoff
 
@@ -359,7 +364,7 @@ After Phase 3 completes:
    1. Yes - Set up MonkeyPlan handoff
    2. No - I'll handle the MonkeyPlan handoff manually"
    ```
-2. If accepted: Create `.monkeyplan/{feature-name}/discovery-brief.md` as a copy of the discovery brief
+2. If accepted: Create `.monkeyplan/{feature-name}/discovery-brief.md` as a copy of the discovery brief (and, if a workspace-root `DESIGN.md` exists, copy it to `.monkeyplan/{feature-name}/DESIGN.md`)
 3. Update `monkeyplan_handoff` in state.json
 4. Announce: "Discovery brief copied to .monkeyplan/{feature-name}/discovery-brief.md. When you're ready, invoke @monkeyplan for {feature-name} and it will load the discovery brief as context."
 
@@ -382,14 +387,14 @@ The agent should read these files from the skills directory for detailed methodo
 
 If user invokes `@monkeythink` in a workspace with existing state:
 
-1. **Extract topic name** from user's request
-2. **Read state file:** `{workspace}/.monkeythink/{topic-name}/state.json`
-3. **Announce context:** "Resuming MonkeyThink for '{topic_name}'. Currently in Phase {N}: {phase_name}."
+1. **Extract feature name** from user's request
+2. **Read state file:** `{workspace}/.monkeythink/{feature-name}/state.json`
+3. **Announce context:** "Resuming MonkeyThink for '{feature-name}'. Currently in Phase {N}: {phase_name}."
 4. **Load artifacts:** Read relevant files from workspace
 5. **Continue from current phase**
 
-**Note:** If user doesn't specify topic name, list available topics by scanning the `.monkeythink/` directory:
-1. List all subdirectories under `{workspace}/.monkeythink/` (each subdirectory is a topic)
+**Note:** If user doesn't specify a feature name, list available features by scanning the `.monkeythink/` directory:
+1. List all subdirectories under `{workspace}/.monkeythink/` (each subdirectory is a feature)
 2. For each subdirectory, read `state.json` to get `current_phase` and phase status
 3. Present the list to the user:
 
@@ -400,7 +405,7 @@ Agent: "Found existing MonkeyThink projects in this workspace:
         2. vendor-onboarding (Phase 2a: Direction Setting)
         3. campaign-analytics (Phase 3: Discovery Brief)
 
-        Which topic would you like to continue with, or would you like to start a new one?"
+        Which feature would you like to continue with, or would you like to start a new one?"
 ```
 
 If the `.monkeythink/` directory doesn't exist or is empty, treat this as a new invocation and start Phase 0.
@@ -490,16 +495,16 @@ When discussing the council with the user:
 
 ### On Every Invocation
 
-1. **Extract topic name** from user's request (or list available if not specified)
-2. **Read workspace state:** `{workspace}/.monkeythink/{topic-name}/state.json`
+1. **Extract feature name** from user's request (or list available if not specified)
+2. **Read workspace state:** `{workspace}/.monkeythink/{feature-name}/state.json`
 3. **Determine phase:** Extract current_phase or start at 0
 4. **Load phase guide:** Read appropriate `phases/{N}-*.md` file
-6. **Load workspace artifacts:** Read relevant framing, council responses, synthesis, direction files
-7. **Execute phase:** Follow methodology from phase guide
-8. **Save artifacts:** Write to `{workspace}/.monkeythink/{topic-name}/...`
-9. **Update Q&A log (if enabled):** If `context.save_qa_log` is `true`, append Q&A to `qa-log.md`
-10. **Update state:** Write updated `{workspace}/.monkeythink/{topic-name}/state.json`
-11. **Ask for confirmation:** Before advancing to next phase (except 0 → 1, 1 → 1b which are automatic)
+5. **Load workspace artifacts:** Read relevant framing, council responses, synthesis, direction files
+6. **Execute phase:** Follow methodology from phase guide
+7. **Save artifacts:** Write to `{workspace}/.monkeythink/{feature-name}/...`
+8. **Update Q&A log (if enabled):** If `context.save_qa_log` is `true`, append Q&A to `qa-log.md`
+9. **Update state:** Write updated `{workspace}/.monkeythink/{feature-name}/state.json`
+10. **Ask for confirmation:** Before advancing to next phase (except 0 → 1, 1 → 1b which are automatic)
 
 ### Never Do
 
@@ -535,9 +540,9 @@ When discussing the council with the user:
 
 ### Always Do
 
-- ✅ Extract topic name first
-- ✅ Read state from `.monkeythink/{topic-name}/state.json`
-- ✅ Run Phase 0 (Problem Framing) for new topics — guided interview
+- ✅ Extract feature name first
+- ✅ Read state from `.monkeythink/{feature-name}/state.json`
+- ✅ Run Phase 0 (Problem Framing) for new features — guided interview
 - ✅ Follow the Orchestrator Persona & Facilitation Rules section above on every invocation
 - ✅ Save all artifacts to workspace
 - ✅ Update state after significant actions
@@ -575,7 +580,7 @@ Every phase output must meet these standards:
 - **Synthesis:** Explicit consensus/unique/contradiction sections; no opinion blending that obscures differences
 - **Direction Setting:** Chosen direction documented with rationale, scope sketch, success criteria, and constraints
 - **DESIGN.md:** Valid `DESIGN.md` exists at workspace root; lint passes (or was skipped with note); no WCAG contrast failures; tokens cover colors, typography, rounded, spacing, and primary button component
-- **UI Concept:** Both canvas and HTML generated in one pass; canvas uses token arbitrary values; HTML has inline `tailwind.config` with tokens; no external imports in canvas; realistic mock data; primary action is interactive; user reacted before advancing
+- **UI Concept:** Both canvas and HTML generated in one pass; canvas uses `useHostTheme()` tokens only (no hardcoded hex, no Tailwind arbitrary values, no `'use client'`); HTML has inline `tailwind.config` with tokens; no external imports in canvas; realistic mock data; primary action is interactive; user reacted before advancing
 - **Risk Challenge:** Each risk attributed to the council member that identified it; risks de-duplicated before presentation
 - **Discovery Brief:** All sections complete; ready for direct consumption by MonkeyPlan Phase 0 Path C (Discovery Import)
 - **Tone:** Curious, collaborative, exploratory — like a senior product strategist facilitating a discovery workshop
